@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Priority-Constrained Descent (PCD) — Hierarchical Multi-Objective Optimization</title>
+<meta name="description" content="PCD is a drop-in gradient optimizer for training problems with a built-in hierarchy: one primary objective plus secondary objectives that merely constrain it. A single tolerance τ ∈ [0,1], no per-loss weights, and a guarantee it never stalls at the conflict equilibria where symmetric methods halt." />
+<meta name="author" content="Dara Varam, Mohamed I. AlHajri" />
+
+<!-- Open Graph / social preview -->
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Priority-Constrained Descent (PCD)" />
+<meta property="og:description" content="Not all objectives are born equal. PCD anchors to the primary gradient and bends only as much as needed to keep every secondary progressing — one dial τ, no weight tuning." />
+<meta property="og:image" content="assets/demo.png" />
+<meta name="twitter:card" content="summary_large_image" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%236A1B9A'/%3E%3Cpath d='M9 23V9h6.2a4.6 4.6 0 0 1 0 9.2H13' stroke='white' stroke-width='2.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
+
+<nav class="dotnav" id="dotnav" aria-label="Section navigation">
+  <a href="#hero" data-label="Top" class="active"><span></span></a>
+  <a href="#tldr" data-label="TL;DR"><span></span></a>
+  <a href="#figure" data-label="Interactive"><span></span></a>
+  <a href="#method" data-label="The idea"><span></span></a>
+  <a href="#guarantees" data-label="Guarantees"><span></span></a>
+  <a href="#results" data-label="Results"><span></span></a>
+  <a href="#applications" data-label="Applications"><span></span></a>
+  <a href="#scope" data-label="Scope"><span></span></a>
+  <a href="#cite" data-label="Cite"><span></span></a>
+</nav>
+
+<!-- ============================ HERO ============================ -->
+<header class="hero" id="hero">
+  <div class="hero-bg" aria-hidden="true">
+    <svg viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid slice">
+      <g class="hero-contours" fill="none" stroke="currentColor">
+        <ellipse cx="360" cy="350" rx="150" ry="110"/>
+        <ellipse cx="360" cy="350" rx="100" ry="72"/>
+        <ellipse cx="360" cy="350" rx="54" ry="38"/>
+        <ellipse cx="840" cy="350" rx="150" ry="110"/>
+        <ellipse cx="840" cy="350" rx="100" ry="72"/>
+        <ellipse cx="840" cy="350" rx="54" ry="38"/>
+      </g>
+      <path id="heroTrace" class="hero-trace"
+            d="M360,350 C 430,330 520,260 600,350 C 680,440 770,370 840,350"
+            fill="none" stroke="currentColor"/>
+      <g class="hero-marks">
+        <circle cx="360" cy="350" r="7" class="hero-start"/>
+        <path d="M840,338 l8,14 l-16,0 z" class="hero-star-pt"/>
+      </g>
+    </svg>
+  </div>
+
+  <div class="wrap hero-inner">
+    <p class="eyebrow reveal">Hierarchical multi-objective optimization for deep learning</p>
+    <h1 class="hero-title reveal">Not all objectives are born equal.<br/><span class="brand">Priority-Constrained&nbsp;Descent</span></h1>
+    <p class="hero-sub reveal">A drop-in gradient optimizer that follows your <em>primary</em> objective and bends away from it <em>only&nbsp;as&nbsp;much&nbsp;as&nbsp;needed</em> to keep every secondary constraint progressing — governed by a single tolerance&nbsp;<span class="m">τ&nbsp;∈&nbsp;[0,1]</span>, with no per-loss weights to tune.</p>
+
+    <div class="authors reveal">
+      <span class="author">Dara Varam<sup>★,1,2</sup></span>
+      <span class="author">Mohamed I. AlHajri<sup>★,1</sup></span>
+      <div class="affil">
+        <span><sup>1</sup> American University of Sharjah</span>
+        <span><sup>2</sup> Senseable City Lab, MIT</span>
+        <span class="eq"><sup>★</sup> Equal contribution</span>
+      </div>
+    </div>
+
+    <div class="actions reveal">
+      <a class="btn btn-primary" href="#" data-link="paper">
+        <svg viewBox="0 0 24 24" class="ico"><path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5"/></svg>
+        Read the paper
+      </a>
+      <a class="btn" href="#" data-link="arxiv">
+        <svg viewBox="0 0 24 24" class="ico"><path d="M4 5h16M4 12h16M4 19h10"/></svg>
+        arXiv
+      </a>
+      <a class="btn" href="#" data-link="code">
+        <svg viewBox="0 0 24 24" class="ico"><path d="M9 18l-6-6 6-6M15 6l6 6-6 6"/></svg>
+        Code
+      </a>
+      <a class="btn" href="#cite">
+        <svg viewBox="0 0 24 24" class="ico"><path d="M7 7h4v4H7zM7 11c0 3-1 4-3 5M13 7h4v4h-4zM13 11c0 3-1 4-3 5"/></svg>
+        BibTeX
+      </a>
+    </div>
+  </div>
+  <a class="scroll-cue" href="#tldr" aria-label="Scroll down"><span></span></a>
+</header>
+
+<main>
+
+<!-- ============================ TL;DR ============================ -->
+<section id="tldr" class="section">
+  <div class="wrap">
+    <p class="kicker reveal">TL;DR</p>
+    <div class="tldr-card reveal">
+      <p class="tldr-lead">Most training pipelines mix several losses, but one is usually the real <strong>deliverable</strong> (task accuracy) while the rest only <strong>constrain</strong> it (sparsity, low-rank, fidelity). Symmetric multi-objective methods average all gradients as equal peers and can <strong>stall before the primary has converged</strong>. <span class="hl">PCD anchors to the primary gradient and admits only the minimal distortion needed to keep every secondary making <em>guaranteed</em> progress</span> — one bounded knob&nbsp;<span class="m">τ</span>, no weight search, and a fixed point that is reached only when <em>every</em> objective is individually stationary.</p>
+      <div class="chips">
+        <span class="chip"><b>1</b> dial, not a weight sweep</span>
+        <span class="chip"><b>94.0%</b> acc @ 90% pruning <span class="chip-sub">DenseNet-121 / CIFAR-10</span></span>
+        <span class="chip"><b>70.9%</b> acc @ 90% pruning <span class="chip-sub">ResNet-34 / CIFAR-100</span></span>
+        <span class="chip">Can't get trapped in <b>conflict equilibria</b></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== INTERACTIVE FIGURE ===================== -->
+<section id="figure" class="section section-alt">
+  <div class="wrap">
+    <p class="kicker reveal">The mechanism, interactively</p>
+    <h2 class="reveal">Symmetric methods average. <span class="brand">PCD&nbsp;prioritizes.</span></h2>
+    <p class="lead reveal">Every gradient-based multi-objective method takes the primary gradient <span class="m">g<sub>1</sub></span> and the secondary gradient <span class="m">g<sub>2</sub></span> and composes a single update <span class="m">d<sup>★</sup></span>. <strong>Drag the gradient handles</strong> to change the geometry, and <strong>slide&nbsp;<span class="m">τ</span></strong> to set how hard the secondary pushes. Watch how the symmetric methods treat the two objectives as interchangeable, while PCD stays pinned to the primary and projects onto the shaded feasible region.</p>
+
+    <div class="figure-wrap reveal">
+      <div class="vec-stage">
+        <svg id="vecSvg" viewBox="0 0 600 600" role="group" aria-label="Interactive figure: drag, or focus a gradient handle and use arrow keys, to compare multi-objective update directions"></svg>
+        <div class="vec-readout" id="vecReadout"></div>
+      </div>
+
+      <div class="vec-controls">
+        <div class="ctl-row">
+          <button id="tourBtn" class="btn btn-primary btn-sm">
+            <svg viewBox="0 0 24 24" class="ico"><path d="M8 5v14l11-7z"/></svg>
+            Watch it work
+          </button>
+          <button id="resetBtn" class="btn btn-sm">
+            <svg viewBox="0 0 24 24" class="ico"><path d="M4 4v6h6M20 20v-6h-6"/><path d="M5 14a7 7 0 0 0 13 1M19 10A7 7 0 0 0 6 9"/></svg>
+            Reset
+          </button>
+        </div>
+
+        <label class="slider-label" for="tauSlider">
+          <span>Tolerance <span class="m">τ</span></span><span class="tau-val" id="tauVal">0.20</span>
+        </label>
+        <input type="range" id="tauSlider" min="0" max="1" step="0.01" value="0.20" />
+        <p class="ctl-hint">τ = 0 reverts to the symmetric (Pareto) endpoint; larger τ forces stronger secondary progress.</p>
+
+        <div class="conflict-badge" id="conflictBadge"></div>
+
+        <p class="legend-title">Methods <span class="legend-hint">(click to toggle)</span></p>
+        <div class="legend" id="vecLegend"></div>
+        <p class="footnote" id="famoNote">FAMO and AuxiNash are history- / bargaining-based; their update can't be drawn from a single gradient snapshot, so they're shown only in the results below.</p>
+      </div>
+    </div>
+    <p class="caption reveal">An interactive remake of Figure 3 in the paper. The four symmetric methods are <em>label-symmetric</em> — swapping <span class="m">g<sub>1</sub></span> and <span class="m">g<sub>2</sub></span> leaves their update unchanged. PCD is the only one whose primary coefficient is structurally pinned to one.</p>
+  </div>
+</section>
+
+<!-- ============================ METHOD ============================ -->
+<section id="method" class="section">
+  <div class="wrap">
+    <p class="kicker reveal">The idea</p>
+    <h2 class="reveal">Anchor to the primary. Distort the minimum amount.</h2>
+    <div class="cols">
+      <div class="col-text">
+        <p class="reveal">Let <span class="m">g̃<sub>1</sub>, …, g̃<sub>K</sub></span> be the scale-normalized gradients of the primary and secondary objectives. PCD takes the direction <em>closest to the primary gradient</em> that still guarantees a <span class="m">τ</span>-fraction of progress on every secondary:</p>
+
+        <div class="formula reveal">
+          <span class="f-lhs">d<sup>★</sup> =</span>
+          <span class="f-body">
+            <span class="argmin">arg&nbsp;min<sub>d</sub></span>
+            ‖ d − g̃<sub>1</sub> ‖²
+            <span class="st">s.t.</span>
+            g̃<sub>j</sub><sup>⊤</sup>d ≥ τ‖g̃<sub>j</sub>‖²<span class="forall">&nbsp;∀ j ≥ 2</span>
+          </span>
+        </div>
+
+        <p class="reveal">This small convex quadratic program is exactly the <strong>Euclidean projection of the primary gradient onto the polyhedron of admissible directions</strong>. Its KKT solution has one revealing form:</p>
+
+        <div class="formula reveal">
+          <span class="f-lhs">d<sup>★</sup> =</span>
+          <span class="f-body">g̃<sub>1</sub> + <span class="sum">Σ<sub>j≥2</sub></span> μ<sub>j</sub><sup>★</sup> g̃<sub>j</sub>,<span class="forall">&nbsp;&nbsp;μ<sub>j</sub><sup>★</sup> ≥ 0</span></span>
+        </div>
+
+        <p class="reveal">The primary's coefficient is <strong>pinned to one</strong>; each secondary enters only through a non-negative multiplier that is zero unless its constraint is active. The "anchor" and the "corrections" are built into the construction — not recovered from it. That is the structural break from symmetric methods, which mix <span class="m">g<sub>1</sub></span> and <span class="m">g<sub>2</sub></span> as peers and cannot tell the deliverable from its constraints.</p>
+
+        <p class="reveal">For <span class="m">K = 2</span> the update is fully closed-form — add <em>exactly</em> the component along <span class="m">g̃<sub>2</sub></span> needed to meet the constraint at equality, and no more. <span class="m">K = 3</span> is closed-form via Cramer's rule; larger <span class="m">K</span> uses an active-set solver whose <span class="m">O(K²n)</span> cost is dominated by the <span class="m">K</span> backpropagations.</p>
+
+        <p class="reveal note-inline"><strong>Scale invariance.</strong> Gradients are normalized by an EMA of their squared norm, so <span class="m">‖g̃<sub>j</sub>‖ ≈ 1</span> in steady state. That makes <span class="m">τ</span> interpretable on <span class="m">[0,1]</span> regardless of loss magnitudes, and the update invariant to per-objective rescaling — a property weighted sum provably lacks.</p>
+      </div>
+
+      <div class="col-fig">
+        <figure class="reveal sticky-fig">
+          <img src="assets/demo.png" alt="Six optimizers on a double-well multi-task landscape; PCD alone crosses the saddle to the joint minimum." loading="lazy" />
+          <figcaption>On a 2D problem where <span class="m">ℒ<sub>1</sub></span> has two minima — only one of which also minimizes <span class="m">ℒ<sub>2</sub></span> — every symmetric baseline (WS, CAGrad, MGDA, PCGrad, FAMO) stalls at a <span class="sw sw-conflict"></span> conflict equilibrium where <span class="m">ℒ<sub>2</sub></span> is still non-zero. PCD alone crosses the saddle to the <span class="sw sw-star"></span> point where <span class="m">∇ℒ<sub>1</sub> = ∇ℒ<sub>2</sub> = 0</span>.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========================= GUARANTEES ========================= -->
+<section id="guarantees" class="section section-alt">
+  <div class="wrap">
+    <p class="kicker reveal">What PCD guarantees</p>
+    <h2 class="reveal">Five properties, proven.</h2>
+    <div class="grid grid-guarantees">
+      <article class="card reveal">
+        <div class="card-no">01</div>
+        <h3>Per-step secondary progress</h3>
+        <p>With <span class="m">τ &gt; 0</span> and a feasible QP, every step satisfies <span class="m">g̃<sub>j</sub><sup>⊤</sup>d<sup>★</sup> ≥ τ‖g̃<sub>j</sub>‖²</span> — a tolerance-controlled descent on each non-stationary secondary. Stronger than PCGrad (no per-objective guarantee), MGDA (only an aggregate), and weighted sum (only the scalarized loss).</p>
+      </article>
+      <article class="card reveal">
+        <div class="card-no">02</div>
+        <h3>Falls back to clean SGD</h3>
+        <p>When the primary direction already gives enough progress on every secondary, the projection is the identity and <span class="m">d<sup>★</sup> = g̃<sub>1</sub></span> exactly. The secondaries never perturb the primary when they don't have to.</p>
+      </article>
+      <article class="card reveal">
+        <div class="card-no">03</div>
+        <h3>Scale invariance</h3>
+        <p>EMA normalization makes the update invariant under per-objective rescaling <span class="m">ℒ<sub>i</sub> → c<sub>i</sub>ℒ<sub>i</sub></span>, so <span class="m">τ</span> keeps a consistent, scale-free meaning even when raw loss magnitudes differ by orders of magnitude.</p>
+      </article>
+      <article class="card reveal">
+        <div class="card-no">04</div>
+        <h3>A strictly stronger endpoint</h3>
+        <p><span class="m">d<sup>★</sup> = 0</span> if and only if <em>every</em> objective is individually stationary — <strong>composite multi-stationarity</strong>. It is strictly stronger than Pareto stationarity and rules out the gradient-cancellation conflict equilibria where symmetric methods halt.</p>
+      </article>
+      <article class="card reveal">
+        <div class="card-no">05</div>
+        <h3>One bounded dial</h3>
+        <p>Sweeping <span class="m">τ ∈ [0,1]</span> varies the feasible set monotonically and traces a continuous trade-off curve between the Pareto endpoint (<span class="m">τ=0</span>) and the CMS endpoint. No weight ratios, conflict coefficients, or per-loss schedules to search.</p>
+      </article>
+      <article class="card card-quiet reveal">
+        <div class="card-no">∎</div>
+        <h3>Full proofs in the paper</h3>
+        <p>Farkas feasibility, the projection / KKT theorem, scale invariance, and the CMS and <span class="m">τ=0</span> endpoint characterizations — with a clickable theory map.</p>
+        <a class="textlink" href="#" data-link="paper">See the appendix →</a>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ========================== RESULTS =========================== -->
+<section id="results" class="section">
+  <div class="wrap">
+    <p class="kicker reveal">Results</p>
+    <h2 class="reveal">Near-unpruned accuracy where baselines collapse.</h2>
+
+    <div class="stat-row">
+      <div class="stat reveal"><div class="stat-num">70.9<span>%</span></div><div class="stat-lbl">accuracy at <b>90% structured sparsity</b> on ResNet-34 / CIFAR-100 (73.3% unpruned). Strongest baseline (AuxiNash): 44.4%.</div></div>
+      <div class="stat reveal"><div class="stat-num">89.2<span>%</span></div><div class="stat-lbl">accuracy at <b>99% parameter reduction</b> on DenseNet-121 / CIFAR-10 — a 43.2× FLOPs and 97.2× model-size cut.</div></div>
+      <div class="stat reveal"><div class="stat-num">2.3–3.4<span>×</span></div><div class="stat-lbl">the dominated <b>hypervolume</b> of the strongest baseline in the three-objective setting, in every configuration.</div></div>
+    </div>
+
+    <div class="result-block reveal">
+      <figure>
+        <img src="assets/sparsity-resnet-c100.png" alt="Accuracy vs parameter reduction; PCD stays far above all baselines." loading="lazy" />
+      </figure>
+      <div class="result-text">
+        <h3>One method dominates the pruning frontier</h3>
+        <p>Across <strong>four architectures</strong> (DenseNet-121, ResNet-34, Inception, MobileNetV2) on <strong>CIFAR-10 and CIFAR-100</strong> — eight configurations — PCD's purple curve sits above every multi-objective baseline at every compression target. Under a structural sparsity penalty the symmetric direction methods (MGDA, PCGrad, CAGrad, FAMO) collapse toward random accuracy; PCD holds the line.</p>
+      </div>
+    </div>
+
+    <div class="result-block reveal reverse">
+      <figure>
+        <img src="assets/tau-dial.png" alt="Accuracy, file size, FLOPs and latency as a function of τ." loading="lazy" />
+      </figure>
+      <div class="result-text">
+        <h3>One dial, the whole frontier</h3>
+        <p>Sweeping a single <span class="m">τ</span> trades <strong>81.5&nbsp;MB</strong> of size, <strong>2.33&nbsp;G</strong> FLOPs and <strong>42.7&nbsp;ms</strong> of latency against accuracy on ResNet-34 / CIFAR-100. The curve is smooth and monotone — most of the benefit arrives within <span class="m">τ ∈ (0, 0.1]</span> — so a practitioner dials to a resource budget instead of searching weight ratios.</p>
+      </div>
+    </div>
+
+    <div class="result-block reveal">
+      <figure>
+        <img src="assets/pareto-resnet-c100.png" alt="Pareto frontiers of accuracy vs latency, size and FLOPs." loading="lazy" />
+      </figure>
+      <div class="result-text">
+        <h3>The swept front dominates baselines</h3>
+        <p>On every resource axis — latency, file size, FLOPs — PCD's <span class="m">τ</span>-swept curve lies above each baseline's best operating point. The same single knob that controls compression traces the entire accuracy–efficiency Pareto front.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================== APPLICATIONS ======================== -->
+<section id="applications" class="section section-alt">
+  <div class="wrap">
+    <p class="kicker reveal">Where it applies</p>
+    <h2 class="reveal">Anywhere a loss is one deliverable plus structural conditions.</h2>
+    <div class="grid grid-apps">
+      <article class="card reveal">
+        <div class="app-ico" aria-hidden="true">▤</div>
+        <h3>Structured pruning &amp; compression</h3>
+        <p>Pair the task loss with a group-lasso, <span class="m">ℓ<sub>1</sub></span>, or nuclear-norm penalty; <span class="m">τ</span> becomes a single compression dial that traces a smooth accuracy–efficiency curve.</p>
+      </article>
+      <article class="card reveal">
+        <div class="app-ico" aria-hidden="true">◷</div>
+        <h3>Quantization-aware training</h3>
+        <p>Keep the task loss primary and a fidelity term penalizing drift from quantized parameters as the secondary, anchoring the model against discrete-value drift without hand-tuned weights.</p>
+      </article>
+      <article class="card reveal">
+        <div class="app-ico" aria-hidden="true">⇄</div>
+        <h3>Federated &amp; personalized learning</h3>
+        <p>Hold local fitness as the deliverable against communication-budget or personalization terms, with <span class="m">τ</span> modulating how hard those constraints push.</p>
+      </article>
+      <article class="card reveal">
+        <div class="app-ico" aria-hidden="true">✦</div>
+        <h3>Structured generative modeling</h3>
+        <p>For flow matching and VAEs, keep generative fidelity primary while structural regularizers act as constraints rather than competing peers.</p>
+      </article>
+    </div>
+
+    <div class="k3-evidence reveal">
+      <p class="k3-lead">Beyond two objectives — a <span class="m">K = 3</span> hierarchy (task loss + <span class="m">ℓ<sub>1</sub></span> sparsity + nuclear-norm low-rank):</p>
+      <div class="k3-figs">
+        <figure>
+          <img src="assets/k3-tausweep.png" alt="τ-sweep on a three-objective hierarchy versus baseline operating points." loading="lazy" />
+          <figcaption>A single <span class="m">τ</span>-sweep beats every baseline on accuracy and effective rank at once; at <span class="m">τ = 0.02</span>, ResNet-34 / CIFAR-100 holds <b>71.0%</b> accuracy at effective rank <b>24.5</b>, versus AuxiNash's 48.7% at rank 184.8.</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/k3-hypervolume.png" alt="Dominated hypervolume per configuration; PCD largest everywhere." loading="lazy" />
+          <figcaption>Dominated hypervolume in the normalized three-objective space: PCD covers the most of the joint trade-off surface in every configuration.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================== SCOPE ============================ -->
+<section id="scope" class="section">
+  <div class="wrap narrow">
+    <p class="kicker reveal">Scope &amp; honesty</p>
+    <h2 class="reveal">What PCD assumes — and what it doesn't claim.</h2>
+    <ul class="scope-list">
+      <li class="reveal"><span class="dot"></span>Secondaries are assumed <strong>proper, convex, lower-semicontinuous</strong> with accessible subgradients (<span class="m">ℓ<sub>1</sub></span>, group lasso, nuclear norm, total variation, hinge all qualify). Non-convex secondaries fall outside the guarantees, though the algorithm still runs.</li>
+      <li class="reveal"><span class="dot"></span>Guarantees are <strong>local and directional</strong> — they attach to the normalized direction <span class="m">d<sup>★</sup></span> and its idealized first-order step, not to a stochastic global-convergence claim.</li>
+      <li class="reveal"><span class="dot"></span>The CMS endpoint is meaningful only when a <strong>jointly stationary point exists</strong> (the regularizer-style hierarchy). On genuine trade-offs with no common stationary point, <span class="m">τ &gt; 0</span> has no fixed point.</li>
+      <li class="reveal"><span class="dot"></span>For <span class="m">K &gt; 2</span> the QP can be infeasible if secondaries are mutually incompatible — but in high dimensions this is a measure-zero event (<strong>0 of 1785</strong> synthetic feasibility checks were infeasible).</li>
+      <li class="reveal"><span class="dot"></span>Each step needs <span class="m">K</span> backpropagations for the gradients; the <span class="m">K×K</span> QP itself is negligible — the same <span class="m">O(K²n)</span> order as MGDA.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ======================== CITATION ============================ -->
+<section id="cite" class="section section-cite">
+  <div class="wrap">
+    <p class="kicker reveal">Citation</p>
+    <h2 class="reveal">Cite PCD</h2>
+    <div class="cite-card reveal">
+      <button class="copy-btn" id="copyBib" aria-label="Copy BibTeX">
+        <svg viewBox="0 0 24 24" class="ico"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+        <span>Copy</span>
+      </button>
+<pre id="bibtex">@article{varam2026pcd,
+  title   = {Not All Objectives Are Born Equal: Priority-Constrained
+             Descent for Hierarchical Multi-Objective Optimization},
+  author  = {Varam, Dara and AlHajri, Mohamed I.},
+  journal = {arXiv preprint},
+  year    = {2026},
+  note    = {Preprint},
+  url     = {}
+}</pre>
+    </div>
+  </div>
+  <footer class="footer">
+    <div class="wrap footer-inner">
+      <div>
+        <p class="foot-title">Priority-Constrained Descent</p>
+        <p class="foot-sub">Dara Varam &amp; Mohamed I. AlHajri · American University of Sharjah</p>
+      </div>
+      <div class="foot-links">
+        <a href="#" data-link="paper">Paper</a>
+        <a href="#" data-link="arxiv">arXiv</a>
+        <a href="#" data-link="code">Code</a>
+        <a href="mailto:varam@mit.edu">Contact</a>
+      </div>
+    </div>
+  </footer>
+</section>
+
+</main>
+
+<div class="toast" id="toast">Copied to clipboard</div>
+
+<script src="js/vectors.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

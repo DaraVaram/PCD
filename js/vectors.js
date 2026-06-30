@@ -1,13 +1,17 @@
 /* =========================================================================
    PCD interactive vector figure
-   Recreates Fig. "PCD-Comparison": composes the update direction d* for
-   five multi-objective methods from two unit gradients g1 (primary) and
-   g2 (secondary). All formulas verified against the paper.
+   Recreates Fig. 3 ("PCD-Comparison"): composes the update direction d* for
+   five multi-objective methods from a fixed primary gradient g1 (anchor) and
+   an adjustable secondary gradient g2 (angle + magnitude). All formulas
+   verified against the paper.
    ========================================================================= */
 (function () {
   "use strict";
 
   var SVGNS = "http://www.w3.org/2000/svg";
+  var DEFAULT_ANG = 105;   // degrees
+  var DEFAULT_MAG = 0.70;  // ||g2||; unequal to ||g1||=1 so symmetric methods separate
+  var DEG = Math.PI / 180;
 
   /* ---------------- vector helpers ---------------- */
   function V(x, y) { return { x: x, y: y }; }
@@ -17,6 +21,9 @@
   function dot(a, b) { return a.x * b.x + a.y * b.y; }
   function nrm(a) { return Math.hypot(a.x, a.y); }
   function unit(a) { var n = nrm(a); return n < 1e-9 ? V(1, 0) : V(a.x / n, a.y / n); }
+  function fromAngMag(deg, mag) { return V(mag * Math.cos(deg * DEG), mag * Math.sin(deg * DEG)); }
+  function angDeg(a) { return Math.atan2(a.y, a.x) / DEG; }
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
   /* ---------------- the five methods (verified) ---------------- */
   function mWS(g1, g2) { return add(mul(g1, 0.5), mul(g2, 0.5)); }
@@ -24,7 +31,7 @@
   function mMGDA(g1, g2) {
     var diff = sub(g1, g2), dd = dot(diff, diff);
     var a = dd > 1e-12 ? (dot(g2, g2) - dot(g1, g2)) / dd : 0.5;
-    a = Math.max(0, Math.min(1, a));
+    a = clamp(a, 0, 1);
     return add(mul(g1, a), mul(g2, 1 - a));
   }
 
@@ -80,8 +87,8 @@
   /* ---------------- self-test against verified vectors ---------------- */
   (function selfTest() {
     var g1 = V(1, 0);
-    var gc = V(Math.cos(150 * Math.PI / 180), Math.sin(150 * Math.PI / 180)); // (-0.8660,0.5)
-    var gn = V(Math.cos(60 * Math.PI / 180), Math.sin(60 * Math.PI / 180));   // (0.5,0.8660)
+    var gc = V(Math.cos(150 * DEG), Math.sin(150 * DEG)); // (-0.8660,0.5)
+    var gn = V(Math.cos(60 * DEG), Math.sin(60 * DEG));   // (0.5,0.8660)
     var cases = [
       ["WS", gc, 0, 0.067, 0.25], ["MGDA", gc, 0, 0.067, 0.25],
       ["PCGrad", gc, 0, 0.25, 0.933], ["CAGrad", gc, 0, 0.1005, 0.375],
@@ -116,69 +123,56 @@
     return e;
   }
 
-  // static layers (built once)
+  // layers (built once): region (shaded), static (axes), dynamic (arrows), handles
   var gStatic = el("g", {}), gRegion = el("g", {}), gDyn = el("g", {}), gHandles = el("g", {});
   svg.appendChild(gRegion); svg.appendChild(gStatic); svg.appendChild(gDyn); svg.appendChild(gHandles);
 
-  // unit circle + axes + origin
+  // axes + reference circle (||g||=1) + origin
   gStatic.appendChild(el("line", { x1: sx(V(-1.5, 0)), y1: sy(V(0, 0)), x2: sx(V(2.0, 0)), y2: sy(V(0, 0)), stroke: "#E7E3EE", "stroke-width": 1 }));
   gStatic.appendChild(el("line", { x1: sx(V(0, -1.15)), y1: sy(V(0, -1.15)), x2: sx(V(0, 1.45)), y2: sy(V(0, 1.45)), stroke: "#E7E3EE", "stroke-width": 1 }));
   gStatic.appendChild(el("circle", { cx: sx(V(0, 0)), cy: sy(V(0, 0)), r: S, fill: "none", stroke: "#ECE6F4", "stroke-width": 1, "stroke-dasharray": "2 5" }));
   gStatic.appendChild(el("circle", { cx: sx(V(0, 0)), cy: sy(V(0, 0)), r: 4, fill: "#1A1523" }));
 
-  // persistent, keyboard-operable gradient handles (focusable sliders)
-  var handleEls = {};
-  [["g1", "#1A1523", "Primary gradient g₁ angle, in degrees"],
-   ["g2", "#6A1B9A", "Secondary gradient g₂ angle, in degrees"]].forEach(function (h) {
-    var which = h[0];
-    var c = el("circle", { r: 10, fill: "#fff", stroke: h[1], "stroke-width": 2.5, cursor: "grab" });
-    c.classList.add("vhandle");
-    c.setAttribute("tabindex", "0");
-    c.setAttribute("role", "slider");
-    c.setAttribute("aria-label", h[2]);
-    c.setAttribute("aria-valuemin", "-180");
-    c.setAttribute("aria-valuemax", "180");
-    c.addEventListener("keydown", function (e) {
-      var step = e.shiftKey ? 1 : 5, d = 0;
-      if (e.key === "ArrowLeft" || e.key === "ArrowDown") d = -step;
-      else if (e.key === "ArrowRight" || e.key === "ArrowUp") d = step;
-      else return;
-      e.preventDefault();
-      cancelTour();
-      var v = state[which], ang = Math.atan2(v.y, v.x) + d * Math.PI / 180;
-      state[which] = V(Math.cos(ang), Math.sin(ang));
-      render();
-    });
-    gHandles.appendChild(c);
-    handleEls[which] = c;
-  });
+  // g1 = fixed primary anchor marker; g2 = draggable secondary handle
+  var g1Marker = el("circle", { cx: sx(V(1, 0)), cy: sy(V(1, 0)), r: 6.5, fill: "#1A1523", stroke: "#fff", "stroke-width": 2 });
+  g1Marker.setAttribute("aria-hidden", "true");
+  gHandles.appendChild(g1Marker);
+  var g2Handle = el("circle", { r: 10, fill: "#fff", stroke: "#6A1B9A", "stroke-width": 2.5, cursor: "grab" });
+  g2Handle.classList.add("vhandle");
+  g2Handle.setAttribute("aria-hidden", "true"); // keyboard control is via the sliders
+  gHandles.appendChild(g2Handle);
 
   // arrowhead drawer
-  function arrow(layer, from, to, color, width, opacity, dash) {
+  function arrow(layer, from, to, color, width, opacity) {
     var fx = sx(from), fy = sy(from), tx = sx(to), ty = sy(to);
     var ang = Math.atan2(ty - fy, tx - fx), len = Math.hypot(tx - fx, ty - fy);
     if (len < 2) return;
     var hl = Math.min(13, len * 0.5), hw = Math.max(width * 1.7, 5);
     var bx = tx - hl * Math.cos(ang), by = ty - hl * Math.sin(ang);
-    var line = el("line", { x1: fx, y1: fy, x2: bx, y2: by, stroke: color, "stroke-width": width, "stroke-linecap": "round", opacity: opacity });
-    if (dash) line.setAttribute("stroke-dasharray", dash);
-    layer.appendChild(line);
+    layer.appendChild(el("line", { x1: fx, y1: fy, x2: bx, y2: by, stroke: color, "stroke-width": width, "stroke-linecap": "round", opacity: opacity }));
     var px = -Math.sin(ang), py = Math.cos(ang);
-    var p1 = tx + "," + ty;
-    var p2 = (bx + px * hw) + "," + (by + py * hw);
-    var p3 = (bx - px * hw) + "," + (by - py * hw);
-    layer.appendChild(el("polygon", { points: p1 + " " + p2 + " " + p3, fill: color, opacity: opacity }));
+    layer.appendChild(el("polygon", {
+      points: tx + "," + ty + " " + (bx + px * hw) + "," + (by + py * hw) + " " + (bx - px * hw) + "," + (by - py * hw),
+      fill: color, opacity: opacity
+    }));
   }
 
-  function label(layer, p, text, color, dx, dy, weight) {
-    var t = el("text", { x: sx(p) + (dx || 0), y: sy(p) + (dy || 0), fill: color, "font-family": "'JetBrains Mono', monospace", "font-size": 14.5, "font-weight": weight || 500 });
+  function labelXY(layer, x, y, text, color, weight) {
+    var t = el("text", {
+      x: x, y: y, fill: color,
+      stroke: "#fff", "stroke-width": 3.2, "paint-order": "stroke",
+      "font-family": "'JetBrains Mono', monospace", "font-size": 14, "font-weight": weight || 500
+    });
     t.textContent = text; layer.appendChild(t);
   }
+  function label(layer, p, text, color, dx, dy, weight) {
+    labelXY(layer, sx(p) + (dx || 0), sy(p) + (dy || 0), text, color, weight);
+  }
 
-  /* ---------------- state ---------------- */
+  /* ---------------- state + DOM refs ---------------- */
   var state = {
     g1: V(1, 0),
-    g2: V(Math.cos(150 * Math.PI / 180), Math.sin(150 * Math.PI / 180)),
+    g2: fromAngMag(DEFAULT_ANG, DEFAULT_MAG),
     tau: 0.20,
     visible: { WS: true, MGDA: true, PCGrad: true, CAGrad: true, PCD: true },
     tour: false
@@ -186,85 +180,90 @@
 
   var tauSlider = document.getElementById("tauSlider");
   var tauVal = document.getElementById("tauVal");
+  var conflictSlider = document.getElementById("conflictSlider");
+  var conflictVal = document.getElementById("conflictVal");
+  var strengthSlider = document.getElementById("strengthSlider");
+  var strengthVal = document.getElementById("strengthVal");
   var readout = document.getElementById("vecReadout");
   var badge = document.getElementById("conflictBadge");
 
   function fmt(n) { return (n >= 0 ? " " : "") + n.toFixed(2); }
+  function setFill(slider, pct) {
+    slider.style.background = "linear-gradient(90deg,var(--pcd) 0%, var(--pcd) " + pct + "%, var(--mist) " + pct + "%)";
+  }
+  function syncControls() {
+    var deg = Math.round(clamp(angDeg(state.g2), 0, 180));
+    var mag = nrm(state.g2);
+    if (conflictSlider) { conflictSlider.value = deg; conflictVal.textContent = deg + "°"; setFill(conflictSlider, deg / 180 * 100); }
+    if (strengthSlider) { strengthSlider.value = mag.toFixed(2); strengthVal.textContent = mag.toFixed(2); setFill(strengthSlider, (mag - 0.3) / 1.2 * 100); }
+    tauSlider.value = state.tau; tauVal.textContent = state.tau.toFixed(2); setFill(tauSlider, state.tau * 100);
+  }
 
   function render() {
-    // clear dynamic + region
     while (gDyn.firstChild) gDyn.removeChild(gDyn.firstChild);
     while (gRegion.firstChild) gRegion.removeChild(gRegion.firstChild);
 
     var g1 = state.g1, g2 = state.g2, tau = state.tau;
 
-    /* feasible half-space H2 = { d : g2·d >= tau (||g2||=1) } */
-    var P = mul(g2, tau);                 // closest boundary point to origin
-    var perp = V(-g2.y, g2.x);
-    var L = 6;
-    var A = add(P, mul(perp, L)), B = sub(P, mul(perp, L));
-    var Cc = add(B, mul(g2, L)), Dd = add(A, mul(g2, L));
-    var poly = [A, B, Cc, Dd].map(function (p) { return sx(p) + "," + sy(p); }).join(" ");
-    gRegion.appendChild(el("polygon", { points: poly, fill: "#6A1B9A", opacity: 0.08 }));
-    // boundary line
+    /* feasible half-space H2 = { d : g2.d >= tau*||g2||^2 }; boundary through P = tau*g2 */
+    var P = mul(g2, tau);
+    var gU = unit(g2), perpU = V(-gU.y, gU.x), L = 6;
+    var A = add(P, mul(perpU, L)), B = sub(P, mul(perpU, L));
+    var Cc = add(B, mul(gU, L)), Dd = add(A, mul(gU, L));
+    gRegion.appendChild(el("polygon", { points: [A, B, Cc, Dd].map(function (p) { return sx(p) + "," + sy(p); }).join(" "), fill: "#6A1B9A", opacity: 0.08 }));
     gRegion.appendChild(el("line", { x1: sx(A), y1: sy(A), x2: sx(B), y2: sy(B), stroke: "#6A1B9A", "stroke-width": 1.4, "stroke-dasharray": "5 4", opacity: 0.5 }));
-    label(gRegion, add(P, mul(perp, -1.15)), "feasible (τ)", "#6A1B9A", 0, 0, 500);
+    // place the label along the boundary, on the side away from where the method arrows point
+    var perpL = dot(perpU, add(g1, g2)) > 0 ? mul(perpU, -1) : perpU;
+    label(gRegion, add(P, mul(perpL, 1.35)), "feasible (τ)", "#6A1B9A", -12, 4, 500);
 
-    /* reference rays g1, g2 */
+    /* reference rays */
     arrow(gDyn, V(0, 0), g1, "#9A92A8", 2, 1);
     arrow(gDyn, V(0, 0), g2, "#9A92A8", 2, 1);
-    label(gDyn, mul(g1, 1.12), "g₁", "#4A4453", 4, 4, 600);
-    label(gDyn, mul(g2, 1.12), "g₂", "#4A4453", -4, 0, 600);
+    label(gDyn, mul(unit(g1), nrm(g1) + 0.12), "g₁", "#4A4453", 4, 4, 600);
+    label(gDyn, mul(unit(g2), nrm(g2) + 0.14), "g₂", "#4A4453", -4, 0, 600);
 
-    /* method arrows */
+    /* method arrows (PCD drawn last so it sits on top) */
     var res = computeAll(g1, g2, tau);
-    var order = ["WS", "MGDA", "CAGrad", "PCGrad", "PCD"];
-    order.forEach(function (key) {
+    function byKey(key) { return METHODS.filter(function (x) { return x.key === key; })[0]; }
+    ["WS", "MGDA", "CAGrad", "PCGrad", "PCD"].forEach(function (key) {
       if (!state.visible[key]) return;
-      var m = METHODS.filter(function (x) { return x.key === key; })[0];
-      var d = res[key];
-      var isP = !!m.pcd;
+      var m = byKey(key), d = res[key], isP = !!m.pcd;
       arrow(gDyn, V(0, 0), d, m.color, isP ? 4.6 : 3.2, isP ? 1 : 0.92);
-      // label, nudged radially outward
-      var u = unit(d), off = isP ? 16 : 13;
-      var lp = add(d, mul(u, 0.001));
-      label(gDyn, lp, m.key === "PCD" ? "PCD" : m.key, m.color,
-        u.x * off + (u.x < 0 ? -18 : 2), -u.y * off + 5, isP ? 700 : 600);
+    });
+    // labels: place PCD first so it keeps its spot; nudge any colliding label downward
+    var placed = [];
+    ["PCD", "WS", "MGDA", "CAGrad", "PCGrad"].forEach(function (key) {
+      if (!state.visible[key]) return;
+      var m = byKey(key), d = res[key], isP = !!m.pcd;
+      var u = unit(d), rad = Math.max(nrm(d) + 0.1, isP ? 0.74 : 0.96);
+      var lx = sx(mul(u, rad)) + (u.x < 0 ? -16 : 3), ly = sy(mul(u, rad)) + 4;
+      for (var k = 0; k < placed.length; k++) {
+        if (Math.abs(lx - placed[k][0]) < 30 && Math.abs(ly - placed[k][1]) < 16) { ly = placed[k][1] + 17; }
+      }
+      placed.push([lx, ly]);
+      labelXY(gDyn, lx, ly, m.key, m.color, isP ? 700 : 600);
     });
 
-    /* handles: update the persistent focusable sliders (kept in gHandles) */
-    [["g1", g1], ["g2", g2]].forEach(function (h) {
-      var c = handleEls[h[0]];
-      c.setAttribute("cx", sx(h[1]));
-      c.setAttribute("cy", sy(h[1]));
-      c.setAttribute("aria-valuenow", Math.round(Math.atan2(h[1].y, h[1].x) * 180 / Math.PI));
-    });
+    /* update draggable handle position */
+    g2Handle.setAttribute("cx", sx(g2));
+    g2Handle.setAttribute("cy", sy(g2));
 
     /* readouts */
-    var c = dot(g1, g2);
+    var cosv = dot(g1, g2) / ((nrm(g1) * nrm(g2)) || 1);
     var pcd = res._pcd, primDesc = dot(g1, pcd.d);
-    var conflict = c < 0;
-    badge.className = "conflict-badge " + (conflict ? "conflict" : "noconflict");
-    badge.textContent = (conflict ? "Conflict" : "No conflict") + "  ·  g₁·g₂ = " + fmt(c);
+    badge.className = "conflict-badge " + (cosv < 0 ? "conflict" : "noconflict");
+    badge.textContent = (cosv < 0 ? "Conflict" : "No conflict") + "  ·  cos∠(g₁,g₂) = " + fmt(cosv);
 
-    var primClass = primDesc > 1e-6 ? "ok" : "warn";
     var primTxt = primDesc > 1e-6
       ? "<span class='ok'>" + fmt(primDesc) + " &gt; 0 ✓</span>"
       : "<span class='warn'>" + fmt(primDesc) + " ≤ 0</span>";
-    var status = pcd.active
-      ? "active · μ=" + pcd.mu.toFixed(2)
-      : "inactive · d★=g₁";
     readout.innerHTML =
-      "<b>PCD</b> " + status + "<br>" +
+      "<b>PCD</b> " + (pcd.active ? "active · μ=" + pcd.mu.toFixed(2) : "inactive · d★=g₁") + "<br>" +
       "primary descent g₁·d★ = " + primTxt +
       (primDesc <= 1e-6 ? "<br><span class='warn'>secondary pressure now overrides the primary (τ past breakdown)</span>" : "");
-
-    // slider fill
-    var pct = (state.tau * 100).toFixed(0);
-    tauSlider.style.background = "linear-gradient(90deg,var(--pcd) 0%, var(--pcd) " + pct + "%, var(--mist) " + pct + "%)";
   }
 
-  /* ---------------- legend ---------------- */
+  /* ---------------- legend (method visibility toggles) ---------------- */
   var legendBox = document.getElementById("vecLegend");
   METHODS.forEach(function (m) {
     var item = document.createElement("button");
@@ -286,24 +285,19 @@
     legendBox.appendChild(item);
   });
 
-  /* ---------------- dragging ---------------- */
-  var dragging = null;
+  /* ---------------- dragging g2 (free angle + magnitude) ---------------- */
+  var dragging = false;
   function pointMath(evt) {
     var r = svg.getBoundingClientRect();
     var x = (evt.clientX - r.left) / r.width * W;
     var y = (evt.clientY - r.top) / r.height * H;
     return V((x - O.x) / S, -(y - O.y) / S);
   }
-  function nearestHandle(p) {
-    var d1 = nrm(sub(p, state.g1)), d2 = nrm(sub(p, state.g2));
-    if (Math.min(d1, d2) > 0.32) return null;
-    return d1 <= d2 ? "g1" : "g2";
-  }
   function onDown(evt) {
-    var p = pointMath(evt), h = nearestHandle(p);
-    if (!h) return;
+    var p = pointMath(evt);
+    if (nrm(sub(p, state.g2)) > 0.42) return;   // only grab near g2's tip
     cancelTour();
-    dragging = h; svg.classList.add("grabbing");
+    dragging = true; svg.classList.add("grabbing");
     svg.setPointerCapture && svg.setPointerCapture(evt.pointerId);
     evt.preventDefault();
   }
@@ -311,22 +305,39 @@
     if (!dragging) return;
     var p = pointMath(evt);
     if (nrm(p) < 1e-6) return;
-    state[dragging] = unit(p);          // constrain to unit length (rotate)
+    var deg = clamp(angDeg(p), 0, 180);          // keep g2 in the upper half-plane
+    var mag = clamp(nrm(p), 0.3, 1.5);
+    state.g2 = fromAngMag(deg, mag);
+    syncControls();
     render();
   }
   function onUp(evt) {
-    dragging = null; svg.classList.remove("grabbing");
+    dragging = false; svg.classList.remove("grabbing");
     svg.releasePointerCapture && evt.pointerId != null && svg.releasePointerCapture(evt.pointerId);
   }
   svg.addEventListener("pointerdown", onDown);
   window.addEventListener("pointermove", onMove);
   window.addEventListener("pointerup", onUp);
 
-  /* ---------------- tau slider ---------------- */
+  /* ---------------- sliders ---------------- */
   tauSlider.addEventListener("input", function () {
     cancelTour();
     state.tau = parseFloat(tauSlider.value);
-    tauVal.textContent = state.tau.toFixed(2);
+    tauVal.textContent = state.tau.toFixed(2); setFill(tauSlider, state.tau * 100);
+    render();
+  });
+  if (conflictSlider) conflictSlider.addEventListener("input", function () {
+    cancelTour();
+    var deg = parseFloat(conflictSlider.value);
+    state.g2 = fromAngMag(deg, nrm(state.g2));
+    conflictVal.textContent = deg + "°"; setFill(conflictSlider, deg / 180 * 100);
+    render();
+  });
+  if (strengthSlider) strengthSlider.addEventListener("input", function () {
+    cancelTour();
+    var mag = parseFloat(strengthSlider.value);
+    state.g2 = fromAngMag(angDeg(state.g2), mag);
+    strengthVal.textContent = mag.toFixed(2); setFill(strengthSlider, (mag - 0.3) / 1.2 * 100);
     render();
   });
 
@@ -349,28 +360,20 @@
   }
   function tourFrame(ts) {
     if (!tourStart) tourStart = ts;
-    var t = (ts - tourStart) / 1000;       // seconds
-    var DUR = 9;
-    var phase = (t % DUR) / DUR;           // 0..1 loop
-    // g2 sweeps between 110° and 160° (always conflicting: g1·g2 < 0)
-    var ang = (135 + 25 * Math.sin(t * 0.7)) * Math.PI / 180;
-    state.g2 = V(Math.cos(ang), Math.sin(ang));
-    // tau ping-pongs 0 -> 1 -> 0
-    var tri = phase < 0.5 ? phase * 2 : (1 - phase) * 2;
-    state.tau = tri;
-    tauSlider.value = state.tau;
-    tauVal.textContent = state.tau.toFixed(2);
+    var t = (ts - tourStart) / 1000, DUR = 9, phase = (t % DUR) / DUR;
+    var ang = 135 + 25 * Math.sin(t * 0.7);                 // sweep 110-160 deg (always conflicting)
+    state.g2 = fromAngMag(ang, DEFAULT_MAG);
+    state.tau = phase < 0.5 ? phase * 2 : (1 - phase) * 2;  // tau ping-pongs 0 -> 1 -> 0
+    syncControls();
     render();
     tourRAF = requestAnimationFrame(tourFrame);
   }
   tourBtn.addEventListener("click", function () {
     if (state.tour) { cancelTour(); return; }
     setTour(true);
-    state.g1 = V(1, 0);
-    if (reduceMotion) {                    // no continuous animation; just set a telling frame
-      state.g2 = V(Math.cos(150 * Math.PI / 180), Math.sin(150 * Math.PI / 180));
-      state.tau = 0.5; tauSlider.value = 0.5; tauVal.textContent = "0.50";
-      render(); setTour(false); return;
+    if (reduceMotion) {
+      state.g2 = fromAngMag(DEFAULT_ANG, DEFAULT_MAG); state.tau = 0.5;
+      syncControls(); render(); setTour(false); return;
     }
     tourStart = null; tourRAF = requestAnimationFrame(tourFrame);
   });
@@ -378,13 +381,14 @@
   /* ---------------- reset ---------------- */
   document.getElementById("resetBtn").addEventListener("click", function () {
     cancelTour();
-    state.g1 = V(1, 0);
-    state.g2 = V(Math.cos(150 * Math.PI / 180), Math.sin(150 * Math.PI / 180));
-    state.tau = 0.20; tauSlider.value = 0.20; tauVal.textContent = "0.20";
+    state.g2 = fromAngMag(DEFAULT_ANG, DEFAULT_MAG);
+    state.tau = 0.20;
     Object.keys(state.visible).forEach(function (k) { state.visible[k] = true; });
     Array.prototype.forEach.call(legendBox.children, function (c) { c.classList.remove("off"); c.setAttribute("aria-pressed", "true"); });
+    syncControls();
     render();
   });
 
+  syncControls();
   render();
 })();

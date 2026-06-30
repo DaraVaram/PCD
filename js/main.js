@@ -9,9 +9,9 @@
      to keep it as a gentle "coming soon" placeholder.
      ----------------------------------------------------------------------- */
   var LINKS = {
-    paper: "",   // e.g. "https://arxiv.org/pdf/2026.xxxxx"
-    arxiv: "",   // e.g. "https://arxiv.org/abs/2026.xxxxx"
-    code: ""     // e.g. "https://github.com/yourname/pcd"
+    paper: "https://arxiv.org/pdf/2606.29521",  // "Read the paper" / "See the appendix"
+    arxiv: "https://arxiv.org/abs/2606.29521",  // arXiv abstract page
+    code: ""                                     // e.g. "https://github.com/yourname/pcd"
   };
 
   var toast = document.getElementById("toast");

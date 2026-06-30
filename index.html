@@ -19,6 +19,12 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%236A1B9A'/%3E%3Cpath d='M9 23V9h6.2a4.6 4.6 0 0 1 0 9.2H13' stroke='white' stroke-width='2.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E" />
 <link rel="stylesheet" href="css/style.css" />
+
+<!-- KaTeX for typeset equations -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.getElementById('method'),{delimiters:[{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
 </head>
 <body>
 
@@ -144,6 +150,17 @@
         <input type="range" id="tauSlider" min="0" max="1" step="0.01" value="0.20" />
         <p class="ctl-hint">τ = 0 reverts to the symmetric (Pareto) endpoint; larger τ forces stronger secondary progress.</p>
 
+        <p class="ctl-sub">Gradient configuration</p>
+        <label class="slider-label" for="conflictSlider">
+          <span>Conflict <span class="m">∠(g₁,g₂)</span></span><span class="tau-val" id="conflictVal">105°</span>
+        </label>
+        <input type="range" id="conflictSlider" min="0" max="180" step="1" value="105" />
+        <label class="slider-label" for="strengthSlider">
+          <span>Secondary strength <span class="m">‖g₂‖</span></span><span class="tau-val" id="strengthVal">0.70</span>
+        </label>
+        <input type="range" id="strengthSlider" min="0.3" max="1.5" step="0.01" value="0.70" />
+        <p class="ctl-hint">Drag <span class="m">g₂</span> in the figure, or use these. When <span class="m">‖g₂‖ = 1</span> the symmetric methods (WS, MGDA, CAGrad) collapse onto a single line — only PCD stays distinct.</p>
+
         <div class="conflict-badge" id="conflictBadge"></div>
 
         <p class="legend-title">Methods <span class="legend-hint">(click to toggle)</span></p>
@@ -164,26 +181,17 @@
       <div class="col-text">
         <p class="reveal">Let <span class="m">g̃<sub>1</sub>, …, g̃<sub>K</sub></span> be the scale-normalized gradients of the primary and secondary objectives. PCD takes the direction <em>closest to the primary gradient</em> that still guarantees a <span class="m">τ</span>-fraction of progress on every secondary:</p>
 
-        <div class="formula reveal">
-          <span class="f-lhs">d<sup>★</sup> =</span>
-          <span class="f-body">
-            <span class="argmin">arg&nbsp;min<sub>d</sub></span>
-            ‖ d − g̃<sub>1</sub> ‖²
-            <span class="st">s.t.</span>
-            g̃<sub>j</sub><sup>⊤</sup>d ≥ τ‖g̃<sub>j</sub>‖²<span class="forall">&nbsp;∀ j ≥ 2</span>
-          </span>
-        </div>
+        <div class="eqn reveal">\[ \mathbf{d}^\star \;=\; \operatorname*{arg\,min}_{\mathbf{d}\in\mathbb{R}^n}\; \bigl\lVert \mathbf{d}-\tilde{\mathbf{g}}_1 \bigr\rVert^2 \quad\text{s.t.}\quad \tilde{\mathbf{g}}_j^{\!\top}\mathbf{d} \;\ge\; \tau\,\bigl\lVert\tilde{\mathbf{g}}_j\bigr\rVert^2 \quad \forall\, j \ge 2 \]</div>
 
         <p class="reveal">This small convex quadratic program is exactly the <strong>Euclidean projection of the primary gradient onto the polyhedron of admissible directions</strong>. Its KKT solution has one revealing form:</p>
 
-        <div class="formula reveal">
-          <span class="f-lhs">d<sup>★</sup> =</span>
-          <span class="f-body">g̃<sub>1</sub> + <span class="sum">Σ<sub>j≥2</sub></span> μ<sub>j</sub><sup>★</sup> g̃<sub>j</sub>,<span class="forall">&nbsp;&nbsp;μ<sub>j</sub><sup>★</sup> ≥ 0</span></span>
-        </div>
+        <div class="eqn reveal">\[ \mathbf{d}^\star \;=\; \tilde{\mathbf{g}}_1 \;+\; \sum_{j\ge 2}\mu_j^\star\,\tilde{\mathbf{g}}_j, \qquad \mu_j^\star \ge 0 \]</div>
 
         <p class="reveal">The primary's coefficient is <strong>pinned to one</strong>; each secondary enters only through a non-negative multiplier that is zero unless its constraint is active. The "anchor" and the "corrections" are built into the construction — not recovered from it. That is the structural break from symmetric methods, which mix <span class="m">g<sub>1</sub></span> and <span class="m">g<sub>2</sub></span> as peers and cannot tell the deliverable from its constraints.</p>
 
         <p class="reveal">For <span class="m">K = 2</span> the update is fully closed-form — add <em>exactly</em> the component along <span class="m">g̃<sub>2</sub></span> needed to meet the constraint at equality, and no more. <span class="m">K = 3</span> is closed-form via Cramer's rule; larger <span class="m">K</span> uses an active-set solver whose <span class="m">O(K²n)</span> cost is dominated by the <span class="m">K</span> backpropagations.</p>
+
+        <div class="eqn reveal">\[ \mathbf{d}^\star = \begin{cases} \tilde{\mathbf{g}}_1, & \tilde{\mathbf{g}}_2^{\!\top}\tilde{\mathbf{g}}_1 \ge \tau\lVert\tilde{\mathbf{g}}_2\rVert^2,\\[6pt] \tilde{\mathbf{g}}_1 + \Bigl(\tau - \dfrac{\tilde{\mathbf{g}}_2^{\!\top}\tilde{\mathbf{g}}_1}{\lVert\tilde{\mathbf{g}}_2\rVert^2}\Bigr)\,\tilde{\mathbf{g}}_2, & \text{otherwise.} \end{cases} \]</div>
 
         <p class="reveal note-inline"><strong>Scale invariance.</strong> Gradients are normalized by an EMA of their squared norm, so <span class="m">‖g̃<sub>j</sub>‖ ≈ 1</span> in steady state. That makes <span class="m">τ</span> interpretable on <span class="m">[0,1]</span> regardless of loss magnitudes, and the update invariant to per-objective rescaling — a property weighted sum provably lacks.</p>
       </div>
@@ -254,6 +262,16 @@
     <div class="result-block reveal">
       <figure>
         <img src="assets/sparsity-resnet-c100.png" alt="Accuracy vs parameter reduction; PCD stays far above all baselines." loading="lazy" />
+        <div class="fig-legend">
+          <span class="fl" style="--c:#6A1B9A">PCD</span>
+          <span class="fl" style="--c:#D66F97">AuxiNash</span>
+          <span class="fl" style="--c:#EF6C00">WS</span>
+          <span class="fl" style="--c:#E53935">CAGrad</span>
+          <span class="fl" style="--c:#6D4C41">PCGrad</span>
+          <span class="fl" style="--c:#1565C0">FAMO</span>
+          <span class="fl" style="--c:#2E7D32">MGDA</span>
+          <span class="fl fl-dash">unpruned baseline</span>
+        </div>
       </figure>
       <div class="result-text">
         <h3>One method dominates the pruning frontier</h3>
@@ -274,6 +292,22 @@
     <div class="result-block reveal">
       <figure>
         <img src="assets/pareto-resnet-c100.png" alt="Pareto frontiers of accuracy vs latency, size and FLOPs." loading="lazy" />
+        <div class="tau-scale">
+          <span>PCD marker shade:</span>
+          <span class="ts-end m">τ = 0</span>
+          <i class="ts-bar"></i>
+          <span class="ts-end m">τ = 1</span>
+        </div>
+        <div class="fig-legend">
+          <span class="fl fl-star" style="--c:#6A1B9A">PCD (τ-swept)</span>
+          <span class="fl" style="--c:#EF6C00">WS</span>
+          <span class="fl" style="--c:#E53935">CAGrad</span>
+          <span class="fl" style="--c:#2E7D32">MGDA</span>
+          <span class="fl" style="--c:#1565C0">FAMO</span>
+          <span class="fl" style="--c:#6D4C41">PCGrad</span>
+          <span class="fl" style="--c:#D66F97">AuxiNash</span>
+          <span class="fl fl-star" style="--c:#1A1523">unpruned baseline</span>
+        </div>
       </figure>
       <div class="result-text">
         <h3>The swept front dominates baselines</h3>
@@ -320,6 +354,15 @@
         </figure>
         <figure>
           <img src="assets/k3-hypervolume.png" alt="Dominated hypervolume per configuration; PCD largest everywhere." loading="lazy" />
+          <div class="fig-legend">
+            <span class="fl" style="--c:#6A1B9A">PCD</span>
+            <span class="fl" style="--c:#D66F97">AuxiNash</span>
+            <span class="fl" style="--c:#EF6C00">WS</span>
+            <span class="fl" style="--c:#E53935">CAGrad</span>
+            <span class="fl" style="--c:#6D4C41">PCGrad</span>
+            <span class="fl" style="--c:#1565C0">FAMO</span>
+            <span class="fl" style="--c:#2E7D32">MGDA</span>
+          </div>
           <figcaption>Dominated hypervolume in the normalized three-objective space: PCD covers the most of the joint trade-off surface in every configuration.</figcaption>
         </figure>
       </div>
@@ -353,13 +396,15 @@
         <span>Copy</span>
       </button>
 <pre id="bibtex">@article{varam2026pcd,
-  title   = {Not All Objectives Are Born Equal: Priority-Constrained
-             Descent for Hierarchical Multi-Objective Optimization},
-  author  = {Varam, Dara and AlHajri, Mohamed I.},
-  journal = {arXiv preprint},
-  year    = {2026},
-  note    = {Preprint},
-  url     = {}
+  title         = {Not All Objectives Are Born Equal: Priority-Constrained
+                   Descent for Hierarchical Multi-Objective Optimization},
+  author        = {Varam, Dara and AlHajri, Mohamed I.},
+  journal       = {arXiv preprint arXiv:2606.29521},
+  year          = {2026},
+  eprint        = {2606.29521},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.LG},
+  url           = {https://arxiv.org/abs/2606.29521}
 }</pre>
     </div>
   </div>

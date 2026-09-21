@@ -258,8 +258,8 @@
       ? "<span class='ok'>" + fmt(primDesc) + " &gt; 0 ✓</span>"
       : "<span class='warn'>" + fmt(primDesc) + " ≤ 0</span>";
     readout.innerHTML =
-      "<b>PCD</b> " + (pcd.active ? "active · μ=" + pcd.mu.toFixed(2) : "inactive · d★=g₁") + "<br>" +
-      "primary descent g₁·d★ = " + primTxt +
+      "<b>PCD</b> " + (pcd.active ? "active · μ=" + pcd.mu.toFixed(2) : "inactive · d̃*=g̃₁") + "<br>" +
+      "primary descent g̃₁·d̃* = " + primTxt +
       (primDesc <= 1e-6 ? "<br><span class='warn'>secondary pressure now overrides the primary (τ past breakdown)</span>" : "");
   }
 

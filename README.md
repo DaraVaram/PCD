@@ -7,7 +7,7 @@ Objectives Are Born Equal: Priority-Constrained Descent for Hierarchical Multi-O
 
 A static page: HTML, CSS and vanilla JS, with no build step. GitHub Pages serves the `main` branch, so
 pushing to `main` publishes it. External requests: Google Fonts (with system-font fallbacks), KaTeX
-from jsDelivr for the equations, and a hidden MapMyVisitors visitor counter.
+from jsDelivr for the equations, and a hidden visitor-map counter (visitormap.workers.dev).
 
 ```
 index.html          the page

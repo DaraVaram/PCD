@@ -11,8 +11,10 @@
 <meta property="og:type" content="website" />
 <meta property="og:title" content="Priority-Constrained Descent (PCD)" />
 <meta property="og:description" content="Not all objectives are born equal. PCD anchors to the primary gradient and bends only as much as needed to keep every secondary progressing — one dial τ, no weight tuning." />
-<meta property="og:image" content="assets/demo.png" />
+<meta property="og:url" content="https://daravaram.github.io/PCD/" />
+<meta property="og:image" content="https://daravaram.github.io/PCD/assets/video-poster.jpg" />
 <meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://daravaram.github.io/PCD/assets/video-poster.jpg" />
 
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -67,7 +69,7 @@
 
   <div class="wrap hero-inner">
     <p class="eyebrow reveal">Hierarchical multi-objective optimization for deep learning</p>
-    <h1 class="hero-title reveal">Not all objectives are born equal.<br/><span class="brand">Priority-Constrained&nbsp;Descent</span></h1>
+    <h1 class="hero-title reveal">Not all objectives are born equal.<br/><span class="brand">Priority-Constrained Descent</span></h1>
     <p class="hero-sub reveal">A drop-in gradient optimizer that follows your <em>primary</em> objective and bends away from it <em>only&nbsp;as&nbsp;much&nbsp;as&nbsp;needed</em> to keep every secondary constraint progressing — governed by a single tolerance&nbsp;<span class="m">τ&nbsp;∈&nbsp;[0,1]</span>, with no per-loss weights to tune.</p>
 
     <div class="authors reveal">
@@ -114,7 +116,7 @@
   <div class="wrap">
     <p class="kicker reveal">TL;DR</p>
     <div class="tldr-card reveal">
-      <p class="tldr-lead">Most training pipelines mix several losses, but one is usually the real <strong>deliverable</strong> (task accuracy) while the rest only <strong>constrain</strong> it (sparsity, low-rank, fidelity). Symmetric multi-objective methods average all gradients as equal peers and can <strong>stall before the primary has converged</strong>. <span class="hl">PCD anchors to the primary gradient and admits only the minimal distortion needed to keep every secondary making <em>guaranteed</em> progress</span> — one bounded knob&nbsp;<span class="m">τ</span>, no weight search, and an update direction that vanishes only when <em>every</em> objective is individually stationary.</p>
+      <p class="tldr-lead">Most training pipelines mix several losses, but one is usually the real <strong>deliverable</strong> (task accuracy) while the rest only <strong>constrain</strong> it (sparsity, low-rank, fidelity). Symmetric multi-objective methods average all gradients as equal peers and can <strong>stall before the primary has converged</strong>. <span class="hl">PCD anchors to the primary gradient and admits only the minimal distortion needed to keep every secondary making <em>guaranteed</em> first-order progress</span> — one bounded knob&nbsp;<span class="m">τ</span>, no weight search, and an update direction that vanishes only when <em>every</em> objective is individually stationary.</p>
       <div class="chips">
         <span class="chip"><b>1</b> dial, not a weight sweep</span>
         <span class="chip"><b>94.0%</b> acc @ 90% pruning <span class="chip-sub">DenseNet-121 / CIFAR-10</span></span>
@@ -147,7 +149,7 @@
   <div class="wrap">
     <p class="kicker reveal">The mechanism, interactively</p>
     <h2 class="reveal">Symmetric methods average. <span class="brand">PCD&nbsp;prioritizes.</span></h2>
-    <p class="lead reveal">Every gradient-based multi-objective method takes the primary gradient <span class="m">g<sub>1</sub></span> and the secondary gradient <span class="m">g<sub>2</sub></span> and composes a single update <span class="m">d<sup>★</sup></span>. <strong>Drag the gradient handles</strong> to change the geometry, and <strong>slide&nbsp;<span class="m">τ</span></strong> to set how hard the secondary pushes. Watch how the symmetric methods treat the two objectives as interchangeable, while PCD stays pinned to the primary and projects onto the shaded feasible region.</p>
+    <p class="lead reveal">Every gradient-based multi-objective method takes the primary gradient <span class="m">g<sub>1</sub></span> and the secondary gradient <span class="m">g<sub>2</sub></span> and composes a single update <span class="m">d̃<sup>*</sup></span>. <strong>Drag the gradient handles</strong> to change the geometry, and <strong>slide&nbsp;<span class="m">τ</span></strong> to set how hard the secondary pushes. Watch how the symmetric methods treat the two objectives as interchangeable, while PCD stays pinned to the primary and projects onto the shaded feasible region.</p>
 
     <div class="figure-wrap reveal">
       <div class="vec-stage">
@@ -171,7 +173,7 @@
           <span>Tolerance <span class="m">τ</span></span><span class="tau-val" id="tauVal">0.20</span>
         </label>
         <input type="range" id="tauSlider" min="0" max="1" step="0.01" value="0.20" />
-        <p class="ctl-hint">τ = 0 reverts to the symmetric (Pareto) endpoint; larger τ forces stronger secondary progress.</p>
+        <p class="ctl-hint">τ = 0 only forbids hurting the secondary (the GEM/A-GEM projection, whose fixed points are Pareto-stationary); larger τ forces stronger secondary progress.</p>
 
         <p class="ctl-sub">Gradient configuration</p>
         <label class="slider-label" for="conflictSlider">
@@ -191,7 +193,7 @@
         <p class="footnote" id="famoNote">FAMO and AuxiNash are history- / bargaining-based; their update can't be drawn from a single gradient snapshot, so they're shown only in the results below.</p>
       </div>
     </div>
-    <p class="caption reveal">An interactive remake of Figure 3 in the paper. The four symmetric methods are <em>label-symmetric</em> — swapping <span class="m">g<sub>1</sub></span> and <span class="m">g<sub>2</sub></span> leaves their update unchanged. PCD is the only one whose primary coefficient is structurally pinned to one.</p>
+    <p class="caption reveal">An interactive remake of Figure 3 in the paper. MGDA, PCGrad and CAGrad are <em>label-symmetric</em> — swapping <span class="m">g<sub>1</sub></span> and <span class="m">g<sub>2</sub></span> leaves their update unchanged — and weighted sum is too at the equal weights drawn here; its weights come from the user, not from the objectives' roles. PCD is the only one whose primary coefficient is structurally pinned to one.</p>
   </div>
 </section>
 
@@ -204,19 +206,19 @@
       <div class="col-text">
         <p class="reveal">Let <span class="m">g̃<sub>1</sub>, …, g̃<sub>K</sub></span> be the scale-normalized gradients of the primary and secondary objectives. PCD takes the direction <em>closest to the primary gradient</em> that still guarantees a <span class="m">τ</span>-fraction of progress on every secondary:</p>
 
-        <div class="eqn reveal">\[ \mathbf{d}^\star \;=\; \operatorname*{arg\,min}_{\mathbf{d}\in\mathbb{R}^n}\; \bigl\lVert \mathbf{d}-\tilde{\mathbf{g}}_1 \bigr\rVert^2 \quad\text{s.t.}\quad \tilde{\mathbf{g}}_j^{\!\top}\mathbf{d} \;\ge\; \tau\,\bigl\lVert\tilde{\mathbf{g}}_j\bigr\rVert^2 \quad \forall\, j \ge 2 \]</div>
+        <div class="eqn reveal">\[ \tilde{\mathbf{d}}^{*} \;=\; \arg\min_{\tilde{\mathbf{d}}\in\mathbb{R}^n}\; \tfrac{1}{2}\bigl\lVert \tilde{\mathbf{d}}-\tilde{\mathbf{g}}_1 \bigr\rVert^2 \quad\text{s.t.}\quad \tilde{\mathbf{g}}_j^{\!\top}\tilde{\mathbf{d}} \;\ge\; \tau\,\bigl\lVert\tilde{\mathbf{g}}_j\bigr\rVert^2 \quad \forall\, j \in \{2,\dots,K\} \]</div>
 
         <p class="reveal">This small convex quadratic program is exactly the <strong>Euclidean projection of the primary gradient onto the polyhedron of admissible directions</strong>. Its KKT solution has one revealing form:</p>
 
-        <div class="eqn reveal">\[ \mathbf{d}^\star \;=\; \tilde{\mathbf{g}}_1 \;+\; \sum_{j\ge 2}\mu_j^\star\,\tilde{\mathbf{g}}_j, \qquad \mu_j^\star \ge 0 \]</div>
+        <div class="eqn reveal">\[ \tilde{\mathbf{d}}^{*} \;=\; \tilde{\mathbf{g}}_1 \;+\; \sum_{j=2}^{K}\mu_j^{*}\,\tilde{\mathbf{g}}_j, \qquad \mu_j^{*} \ge 0 \]</div>
 
         <p class="reveal">The primary's coefficient is <strong>pinned to one</strong>; each secondary enters only through a non-negative multiplier that is zero unless its constraint is active. The "anchor" and the "corrections" are built into the construction — not recovered from it. That is the structural break from symmetric methods, which mix <span class="m">g<sub>1</sub></span> and <span class="m">g<sub>2</sub></span> as peers and cannot tell the deliverable from its constraints.</p>
 
         <p class="reveal">For <span class="m">K = 2</span> the update is fully closed-form — add <em>exactly</em> the component along <span class="m">g̃<sub>2</sub></span> needed to meet the constraint at equality, and no more. <span class="m">K = 3</span> is closed-form via Cramer's rule; larger <span class="m">K</span> enumerates active sets on the <span class="m">K×K</span> Gram matrix. That solve is negligible next to the <span class="m">K</span> backpropagations: under 2% of wall-clock time at <span class="m">K = 2</span>.</p>
 
-        <div class="eqn reveal">\[ \mathbf{d}^\star = \begin{cases} \tilde{\mathbf{g}}_1, & \tilde{\mathbf{g}}_2^{\!\top}\tilde{\mathbf{g}}_1 \ge \tau\lVert\tilde{\mathbf{g}}_2\rVert^2,\\[6pt] \tilde{\mathbf{g}}_1 + \Bigl(\tau - \dfrac{\tilde{\mathbf{g}}_2^{\!\top}\tilde{\mathbf{g}}_1}{\lVert\tilde{\mathbf{g}}_2\rVert^2}\Bigr)\,\tilde{\mathbf{g}}_2, & \text{otherwise.} \end{cases} \]</div>
+        <div class="eqn reveal">\[ \tilde{\mathbf{d}}^{*} = \begin{cases} \tilde{\mathbf{g}}_1, & \tilde{\mathbf{g}}_2^{\!\top}\tilde{\mathbf{g}}_1 \ge \tau\lVert\tilde{\mathbf{g}}_2\rVert^2,\\[6pt] \tilde{\mathbf{g}}_1 + \Bigl(\tau - \dfrac{\tilde{\mathbf{g}}_2^{\!\top}\tilde{\mathbf{g}}_1}{\lVert\tilde{\mathbf{g}}_2\rVert^2}\Bigr)\,\tilde{\mathbf{g}}_2, & \text{otherwise.} \end{cases} \]</div>
 
-        <p class="reveal note-inline"><strong>Scale invariance.</strong> Gradients are normalized by an EMA of their squared norm, so <span class="m">‖g̃<sub>j</sub>‖ ≈ 1</span> in steady state. That makes <span class="m">τ</span> interpretable on <span class="m">[0,1]</span> regardless of loss magnitudes, and the update invariant to per-objective rescaling — a property weighted sum provably lacks.</p>
+        <p class="reveal note-inline"><strong>Scale invariance.</strong> Gradients are normalized by an EMA of their squared norm, so <span class="m">‖g̃<sub>j</sub>‖ ≈ 1</span> in steady state. That makes <span class="m">τ</span> interpretable on <span class="m">[0,1]</span> regardless of loss magnitudes, and the update asymptotically invariant to per-objective rescaling — a property weighted sum provably lacks.</p>
       </div>
 
       <div class="col-fig">
@@ -233,32 +235,32 @@
 <section id="guarantees" class="section section-alt">
   <div class="wrap">
     <p class="kicker reveal">What PCD guarantees</p>
-    <h2 class="reveal">Five properties, proven.</h2>
+    <h2 class="reveal">Five properties of the PCD direction.</h2>
     <div class="grid grid-guarantees">
       <article class="card reveal">
         <div class="card-no">01</div>
         <h3>Per-step secondary progress</h3>
-        <p>With <span class="m">τ &gt; 0</span> and a feasible QP, every step satisfies <span class="m">g̃<sub>j</sub><sup>⊤</sup>d<sup>★</sup> ≥ τ‖g̃<sub>j</sub>‖²</span> — tolerance-controlled first-order descent on each non-stationary secondary (exactly for smooth secondaries; for nonsmooth ones up to a "kink tax" the paper quantifies). Stronger than PCGrad (no per-objective guarantee), MGDA (only an aggregate), and weighted sum (only the scalarized loss).</p>
+        <p>With <span class="m">τ &gt; 0</span> and a feasible QP, every step satisfies <span class="m">g̃<sub>j</sub><sup>⊤</sup>d̃<sup>*</sup> ≥ τ‖g̃<sub>j</sub>‖²</span> — tolerance-controlled first-order descent on each non-stationary secondary (exactly for smooth secondaries; for nonsmooth ones up to a "kink tax" the paper quantifies). Stronger than PCGrad (no per-objective guarantee), MGDA (only an aggregate), and weighted sum (only the scalarized loss).</p>
       </article>
       <article class="card reveal">
         <div class="card-no">02</div>
-        <h3>Falls back to clean SGD</h3>
-        <p>When the primary direction already gives enough progress on every secondary, the projection is the identity and <span class="m">d<sup>★</sup> = g̃<sub>1</sub></span> exactly. The secondaries never perturb the primary when they don't have to.</p>
+        <h3>Falls back to plain primary descent</h3>
+        <p>When the primary direction already gives enough progress on every secondary, the projection is the identity and <span class="m">d̃<sup>*</sup> = g̃<sub>1</sub></span> exactly. The secondaries never perturb the primary when they don't have to.</p>
       </article>
       <article class="card reveal">
         <div class="card-no">03</div>
         <h3>Scale invariance</h3>
-        <p>EMA normalization makes the update invariant under per-objective rescaling <span class="m">ℒ<sub>i</sub> → c<sub>i</sub>ℒ<sub>i</sub></span>, so <span class="m">τ</span> keeps a consistent, scale-free meaning even when raw loss magnitudes differ by orders of magnitude.</p>
+        <p>EMA normalization makes the update <em>asymptotically</em> invariant (exactly as ε → 0) under per-objective rescaling <span class="m">ℒ<sub>i</sub> → c<sub>i</sub>ℒ<sub>i</sub></span>, so <span class="m">τ</span> keeps a consistent, scale-free meaning even when raw loss magnitudes differ by orders of magnitude.</p>
       </article>
       <article class="card reveal">
         <div class="card-no">04</div>
         <h3>A strictly stronger endpoint</h3>
-        <p>For <span class="m">τ &gt; 0</span>, <span class="m">d<sup>★</sup> = 0</span> if and only if <em>every</em> objective is individually stationary — <strong>composite multi-stationarity</strong>. It is strictly stronger than Pareto stationarity, so the gradient-cancellation conflict equilibria where symmetric methods halt are never fixed points of the PCD direction.</p>
+        <p>For <span class="m">τ &gt; 0</span>, <span class="m">d̃<sup>*</sup> = 0</span> if and only if <em>every</em> objective is individually stationary — <strong>composite multi-stationarity</strong>. It is strictly stronger than Pareto stationarity, so the gradient-cancellation conflict equilibria where symmetric methods halt are never fixed points of the PCD direction. (This requires a feasible QP and is a property of the normalized direction <span class="m">d̃<sup>*</sup></span>, not a convergence result for the deployed optimizer.)</p>
       </article>
       <article class="card reveal">
         <div class="card-no">05</div>
         <h3>One bounded dial</h3>
-        <p>Sweeping <span class="m">τ ∈ [0,1]</span> varies the feasible set monotonically and traces a continuous trade-off curve between the Pareto endpoint (<span class="m">τ=0</span>) and the CMS endpoint. No weight ratios, conflict coefficients, or per-loss schedules to search.</p>
+        <p>Sweeping <span class="m">τ ∈ [0,1]</span> varies the feasible set monotonically and traces a continuous trade-off curve between the Pareto endpoint (<span class="m">τ=0</span>) and the CMS endpoint, on problems where a jointly stationary point exists. No weight ratios, conflict coefficients, or per-loss schedules to search.</p>
       </article>
       <article class="card card-quiet reveal">
         <div class="card-no">∎</div>
@@ -277,7 +279,7 @@
     <h2 class="reveal">Near-unpruned accuracy where baselines collapse.</h2>
 
     <div class="stat-row">
-      <div class="stat reveal"><div class="stat-num">70.9<span>%</span></div><div class="stat-lbl">accuracy at <b>90% structured sparsity</b> on ResNet-34 / CIFAR-100 (73.3% unpruned). Strongest baseline (AuxiNash): 44.4%.</div></div>
+      <div class="stat reveal"><div class="stat-num">70.9<span>%</span></div><div class="stat-lbl">accuracy at <b>90% parameter reduction</b> on ResNet-34 / CIFAR-100 (73.3% unpruned). Strongest baseline (AuxiNash): 44.4%.</div></div>
       <div class="stat reveal"><div class="stat-num">89.2<span>%</span></div><div class="stat-lbl">accuracy at <b>99% parameter reduction</b> on DenseNet-121 / CIFAR-10 — a 45.4× FLOPs and 83× model-size cut, measured on the physically pruned network.</div></div>
       <div class="stat reveal"><div class="stat-num">2.3–3.4<span>×</span></div><div class="stat-lbl">the dominated <b>hypervolume</b> of the strongest baseline in the three-objective setting, in every configuration.</div></div>
     </div>
@@ -309,7 +311,7 @@
       </figure>
       <div class="result-text">
         <h3>One dial, the whole frontier</h3>
-        <p>Sweeping a single <span class="m">τ</span> trades the unpruned network's <strong>81.5&nbsp;MB</strong>, <strong>2.33&nbsp;G</strong> FLOPs and <strong>24.5&nbsp;ms</strong> CPU latency against accuracy on ResNet-34 / CIFAR-100. The curve is smooth and, to within seed noise, monotone — most of the benefit arrives within <span class="m">τ ∈ (0, 0.1]</span> — so a practitioner dials to a resource budget instead of searching weight ratios.</p>
+        <p>Sweeping a single <span class="m">τ</span> trades the unpruned network's <strong>81.5&nbsp;MB</strong>, <strong>2.33&nbsp;G</strong> FLOPs and <strong>24.5&nbsp;ms</strong> CPU latency against accuracy on ResNet-34 / CIFAR-100. The curve is smooth and nearly monotone — most of the benefit arrives within <span class="m">τ ∈ (0, 0.1]</span> — so a practitioner dials to a resource budget instead of searching weight ratios.</p>
       </div>
     </div>
 
@@ -358,7 +360,7 @@
       <div class="k3-figs">
         <figure>
           <img src="assets/k3-tausweep.png" alt="PCD's τ-sweep on a three-objective hierarchy versus every baseline's full hyperparameter sweep." loading="lazy" />
-          <figcaption>Over the low-to-moderate <span class="m">τ</span> range, PCD's single sweep beats every baseline's full sweep on accuracy and on effective rank, while the baselines reach high sparsity only by collapsing. At <span class="m">τ = 0.02</span>, ResNet-34 / CIFAR-100 holds <b>71.0%</b> accuracy at effective rank <b>24.5</b>, versus AuxiNash's 48.7% at rank 184.8.</figcaption>
+          <figcaption>Over the low-to-moderate <span class="m">τ</span> range, PCD's single sweep beats every baseline's full sweep on accuracy and on effective rank, while the baselines reach high sparsity only by collapsing. At <span class="m">τ = 0.02</span>, ResNet-34 / CIFAR-10 holds <b>91.8%</b> accuracy at effective rank <b>30.9</b>, versus AuxiNash's 75.7% at rank 153.1.</figcaption>
         </figure>
         <figure>
           <img src="assets/k3-hypervolume.png" alt="Dominated hypervolume per configuration; PCD largest everywhere." loading="lazy" />
@@ -385,7 +387,7 @@
     <h2 class="reveal">What PCD assumes — and what it doesn't claim.</h2>
     <ul class="scope-list">
       <li class="reveal"><span class="dot"></span>Secondaries are assumed <strong>proper, convex, lower-semicontinuous</strong> with accessible subgradients (<span class="m">ℓ<sub>1</sub></span>, group lasso, nuclear norm, total variation, hinge all qualify). Non-convex secondaries fall outside the guarantees, though the algorithm still runs.</li>
-      <li class="reveal"><span class="dot"></span>Guarantees are <strong>local and directional</strong> — they attach to the normalized direction <span class="m">d<sup>★</sup></span> and its idealized first-order step, not to a stochastic global-convergence claim.</li>
+      <li class="reveal"><span class="dot"></span>Guarantees are <strong>local and directional</strong> — they attach to the normalized direction <span class="m">d̃<sup>*</sup></span> and its idealized first-order step, not to a stochastic global-convergence claim.</li>
       <li class="reveal"><span class="dot"></span>The CMS endpoint is meaningful only when a <strong>jointly stationary point exists</strong> (the regularizer-style hierarchy). On genuine trade-offs with no common stationary point, <span class="m">τ &gt; 0</span> has no fixed point.</li>
       <li class="reveal"><span class="dot"></span>For <span class="m">K &gt; 2</span> the QP can be infeasible if secondaries are mutually incompatible — but in high dimensions this is a measure-zero event (<strong>0 of 1785</strong> synthetic feasibility checks were infeasible).</li>
       <li class="reveal"><span class="dot"></span>Each step needs <span class="m">K</span> backpropagations for the gradients. The <span class="m">K×K</span> QP adds an <span class="m">O(K²n)</span> Gram matrix, a fraction <span class="m">O(K/B)</span> of the backward passes for batch size <span class="m">B</span> (under 2% of wall-clock time at <span class="m">K = 2</span>, <span class="m">B = 128</span>).</li>

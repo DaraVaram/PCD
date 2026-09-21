@@ -5,8 +5,7 @@
   "use strict";
 
   /* -----------------------------------------------------------------------
-     EDIT THESE: point the buttons at your real URLs. Leave a value as ""
-     to keep it as a gentle "coming soon" placeholder.
+     Button URLs. A value left as "" shows a "coming soon" toast instead.
      ----------------------------------------------------------------------- */
   var LINKS = {
     paper: "https://arxiv.org/pdf/2606.29521",                   // "Read the paper" / "See the appendix"

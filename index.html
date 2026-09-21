@@ -131,25 +131,14 @@
     <p class="kicker reveal">Video</p>
     <h2 class="reveal">The whole idea, animated.</h2>
     <div class="video-frame reveal">
-      <!-- Placeholder until the narrated cut is final. To publish the video, replace the
-           .video-placeholder div below with either a self-hosted file:
-             <video controls preload="metadata" playsinline poster="assets/video-poster.jpg">
-               <source src="assets/pcd-video.mp4" type="video/mp4" />
-               <track kind="captions" src="assets/pcd-video.vtt" srclang="en" label="English" default />
-             </video>
-           or a YouTube embed:
-             <iframe src="https://www.youtube-nocookie.com/embed/VIDEO_ID" title="Priority-Constrained Descent"
-                     allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen></iframe>
-           Both fill the 16:9 frame; no CSS changes needed. -->
-      <div class="video-placeholder">
-        <img src="assets/video-poster.jpg" alt="Still from the PCD video: the primary gradient projected onto the half-space of directions that keep the secondary progressing." loading="lazy" />
-        <div class="video-overlay">
-          <span class="video-play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
-          <span class="video-soon">Narrated walkthrough · coming soon</span>
-        </div>
-      </div>
+      <video controls preload="metadata" playsinline poster="assets/video-poster.jpg"
+             aria-label="Priority-Constrained Descent: narrated walkthrough">
+        <source src="assets/pcd-video.mp4" type="video/mp4" />
+        <track kind="captions" src="assets/pcd-video.vtt" srclang="en" label="English" />
+      </video>
     </div>
     <p class="caption reveal">An eight-minute tour: why symmetric methods stall at conflict equilibria, how PCD's projection works and what <span class="m">τ</span> controls, and the results on pruning, sparsity and low rank.</p>
+    <p class="footnote reveal">Narration voice generated with <a href="https://elevenlabs.io" target="_blank" rel="noopener">ElevenLabs</a>.</p>
   </div>
 </section>
 

@@ -1,0 +1,341 @@
+WEBVTT
+
+1
+00:00:00.000 --> 00:00:02.442
+Not all objectives are born equal.
+
+2
+00:00:02.442 --> 00:00:04.070
+This is Priority-Constrained Descent.
+
+3
+00:00:06.650 --> 00:00:08.870
+Deep learning rarely has a single objective.
+
+4
+00:00:09.317 --> 00:00:14.842
+To prune a network, we pair the task loss with a sparsity penalty.
+
+5
+00:00:14.842 --> 00:00:17.392
+Low-rank models add a rank penalty;
+
+6
+00:00:17.392 --> 00:00:19.092
+quantization, a fidelity term;
+
+7
+00:00:19.092 --> 00:00:22.067
+continual and federated learning, their own constraints.
+
+8
+00:00:22.517 --> 00:00:27.957
+In every case, one loss is the deliverable, and the others only constrain how we get there.
+
+9
+00:00:27.957 --> 00:00:29.557
+The objectives form a hierarchy.
+
+10
+00:00:30.633 --> 00:00:35.124
+The usual recipe adds everything up with weights.
+
+11
+00:00:35.124 --> 00:00:45.227
+But weights encode priority only implicitly, depend on the arbitrary scale of each loss, and need fragile sweeps.
+
+12
+00:00:45.667 --> 00:00:58.867
+Gradient-based methods such as MGDA, PCGrad, CAGrad and FAMO combine the gradients directly instead, but they treat the objectives as symmetric peers.
+
+13
+00:00:59.300 --> 00:01:10.274
+Swap which loss you call primary and which you call secondary, and MGDA, PCGrad and CAGrad return exactly the same update.
+
+14
+00:01:11.333 --> 00:01:14.043
+They aim for Pareto stationarity:
+
+15
+00:01:14.043 --> 00:01:24.340
+a point where no direction improves every objective at once, because the gradients can be combined to cancel out.
+
+16
+00:01:24.783 --> 00:01:27.590
+But cancellation is not convergence.
+
+17
+00:01:27.590 --> 00:01:36.570
+Here, the primary loss has two minima, and only the right one also satisfies the secondary.
+
+18
+00:01:37.007 --> 00:01:51.097
+From three starting points, weighted sum, MGDA, PCGrad, CAGrad and FAMO all stall on the left, where the pull of one objective balances the push of the other.
+
+19
+00:01:51.547 --> 00:01:54.334
+We call this a conflict equilibrium:
+
+20
+00:01:54.334 --> 00:01:58.515
+the optimizer stops, but the secondary is never satisfied.
+
+21
+00:01:59.600 --> 00:02:02.253
+Priority-Constrained Descent starts from a different principle:
+
+22
+00:02:02.253 --> 00:02:07.560
+follow the primary gradient, and bend away from it only as much as needed.
+
+23
+00:02:08.000 --> 00:02:12.520
+Here is the primary gradient, g-one, and the secondary gradient, g-two.
+
+24
+00:02:12.967 --> 00:02:19.344
+Directions that make at least a tau-fraction of the best possible progress on the secondary form a half-space:
+
+25
+00:02:19.344 --> 00:02:20.407
+the shaded region.
+
+26
+00:02:20.850 --> 00:02:24.975
+If the primary gradient already lies inside, PCD leaves it untouched:
+
+27
+00:02:24.975 --> 00:02:28.350
+the update is plain gradient descent on the primary.
+
+28
+00:02:28.800 --> 00:02:35.700
+If not, PCD projects it onto the half-space, to the closest direction that still guarantees the secondary's progress.
+
+29
+00:02:36.150 --> 00:02:38.356
+Formally, it's a tiny quadratic program:
+
+30
+00:02:38.356 --> 00:02:44.240
+stay as close as possible to the primary gradient, subject to one progress constraint per secondary.
+
+31
+00:02:45.350 --> 00:02:49.890
+As the geometry changes, PCD moves smoothly between three regimes.
+
+32
+00:02:50.333 --> 00:02:53.742
+When the gradients agree enough, the constraint is inactive.
+
+33
+00:02:53.742 --> 00:02:58.288
+When they agree, but not enough, PCD adds just enough of g-two.
+
+34
+00:02:58.288 --> 00:03:02.833
+Under conflict it adds more, but never more than the constraint requires.
+
+35
+00:03:03.267 --> 00:03:07.373
+The single knob tau sets how demanding the constraint is.
+
+36
+00:03:07.373 --> 00:03:11.479
+At zero, PCD only asks not to hurt the secondary;
+
+37
+00:03:11.479 --> 00:03:16.817
+as tau grows, the half-space recedes and the update leans toward the secondary.
+
+38
+00:03:17.900 --> 00:03:20.752
+This makes PCD asymmetric by construction.
+
+39
+00:03:20.752 --> 00:03:32.638
+The solution is always the primary gradient, with a coefficient of exactly one, plus non-negative multiples of the secondaries, each zero unless its constraint binds.
+
+40
+00:03:33.083 --> 00:03:36.335
+So the labels matter.
+
+41
+00:03:36.335 --> 00:03:45.277
+In the swap test, the symmetric methods returned the same update.
+
+42
+00:03:45.717 --> 00:03:55.007
+Swap them for PCD, and the update changes, because PCD knows which objective is the deliverable.
+
+43
+00:03:56.083 --> 00:04:01.943
+With more secondaries, each adds its own half-space, and PCD projects onto their intersection.
+
+44
+00:04:02.383 --> 00:04:05.979
+For two or three objectives the solution is closed-form;
+
+45
+00:04:05.979 --> 00:04:10.373
+in general it's a small K-by-K problem, negligible next to backpropagation.
+
+46
+00:04:10.817 --> 00:04:18.104
+The intersection is empty only if the secondary gradients exactly cancel, a measure-zero event in high dimensions.
+
+47
+00:04:19.183 --> 00:04:20.295
+One more ingredient:
+
+48
+00:04:20.295 --> 00:04:20.665
+scale.
+
+49
+00:04:20.665 --> 00:04:26.963
+In our pruning experiments, the regularizer's gradient is ten to a hundred times larger than the task's.
+
+50
+00:04:27.400 --> 00:04:35.085
+PCD normalizes each gradient by a running average of its own norm, like Adam's second moment, but one scalar per objective.
+
+51
+00:04:35.085 --> 00:04:39.110
+So tau means the same thing however the losses are scaled.
+
+52
+00:04:39.550 --> 00:04:42.593
+Rescale the secondary across ten orders of magnitude:
+
+53
+00:04:42.593 --> 00:04:49.060
+a fixed weighted sum is dragged across the whole Pareto front, while PCD's operating point stays put.
+
+54
+00:04:50.133 --> 00:04:54.213
+Together, this gives three guarantees for the direction PCD computes.
+
+55
+00:04:54.650 --> 00:04:58.680
+Every step makes a tau-fraction of first-order progress on every secondary.
+
+56
+00:04:59.117 --> 00:05:03.787
+When the primary already does the job, PCD is exactly gradient descent.
+
+57
+00:05:04.233 --> 00:05:09.557
+And the direction vanishes only when every objective is individually stationary:
+
+58
+00:05:09.557 --> 00:05:12.944
+composite multi-stationarity, strictly stronger than Pareto stationarity.
+
+59
+00:05:12.944 --> 00:05:17.783
+Conflict equilibria are not fixed points of the PCD direction.
+
+60
+00:05:18.233 --> 00:05:19.886
+Back to our landscape:
+
+61
+00:05:19.886 --> 00:05:28.563
+from all three starts, PCD passes the conflict equilibrium, crosses the barrier, and reaches the point where both objectives are minimized.
+
+62
+00:05:31.033 --> 00:05:38.543
+In practice, a PCD step computes one gradient per objective, normalizes them, and solves the small projection.
+
+63
+00:05:38.983 --> 00:05:44.849
+It rescales the result to the primary gradient's length and hands it to your usual optimizer.
+
+64
+00:05:44.849 --> 00:05:47.415
+It's a drop-in replacement for the gradient.
+
+65
+00:05:48.483 --> 00:05:49.749
+Now, the experiments.
+
+66
+00:05:49.749 --> 00:05:58.189
+In structured pruning, the task loss is primary, and a group-lasso penalty that drives whole channels to zero is secondary.
+
+67
+00:05:58.189 --> 00:06:01.143
+Removing them leaves a smaller, dense network.
+
+68
+00:06:01.583 --> 00:06:12.573
+Across four architectures on CIFAR-10 and CIFAR-100, PCD stays above every multi-objective baseline at every compression target up to ninety-five percent.
+
+69
+00:06:13.017 --> 00:06:21.948
+On ResNet-34 with CIFAR-100, PCD keeps seventy point nine percent accuracy with ninety percent of the parameters removed.
+
+70
+00:06:21.948 --> 00:06:25.422
+The unpruned network scores seventy-three point three;
+
+71
+00:06:25.422 --> 00:06:27.407
+the strongest baseline, forty-four.
+
+72
+00:06:27.850 --> 00:06:30.219
+And tau works as a compression dial:
+
+73
+00:06:30.219 --> 00:06:38.680
+turning it up trades accuracy for size, FLOPs and latency along a smooth curve, with most of the savings below tau equals zero point one.
+
+74
+00:06:39.750 --> 00:06:51.490
+Against tuned pruning and constrained baselines at matched sparsity, PCD is better in twenty-eight of forty-seven comparisons in the compression regime, worse in one, and within noise in the rest.
+
+75
+00:06:51.933 --> 00:06:59.523
+And the same tau costs a consistent amount of accuracy across configurations, unlike its raw-gradient counterpart, DBGD.
+
+76
+00:07:00.600 --> 00:07:09.710
+With three objectives, the task loss, an l-one penalty for sparsity, and a nuclear norm for low rank, one tau still steers everything.
+
+77
+00:07:10.150 --> 00:07:21.774
+On ResNet-34 with CIFAR-100, PCD keeps seventy-one percent accuracy with ninety-two point six percent of the weights at zero and an effective rank of twenty-four point five.
+
+78
+00:07:21.774 --> 00:07:27.370
+The strongest baseline reaches forty-eight point seven percent, at rank one hundred eighty-five.
+
+79
+00:07:27.817 --> 00:07:36.497
+Across the whole trade-off surface, PCD's dominated hypervolume is two point three to three point four times the strongest baseline's, in every configuration.
+
+80
+00:07:37.567 --> 00:07:42.063
+On synthetic problems, conflict equilibria appear exactly where theory predicts:
+
+81
+00:07:42.063 --> 00:07:48.807
+MGDA and CAGrad stall, with a trapped gradient that grows with the number of objectives.
+
+82
+00:07:49.250 --> 00:07:54.130
+PCD drives the primary gradient to zero for every number of objectives we tested.
+
+83
+00:07:55.200 --> 00:07:59.600
+Not all objectives are born equal, and your optimizer shouldn't treat them as if they were.
+
+84
+00:08:00.050 --> 00:08:07.276
+PCD anchors to the objective that matters, bends only as much as needed, and gives you one interpretable dial.
+
+85
+00:08:07.276 --> 00:08:11.840
+The paper, code and an interactive demo are on the project page.

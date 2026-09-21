@@ -14,7 +14,7 @@ index.html          the page
 css/style.css       design system
 js/vectors.js       the interactive vector figure (draggable g1/g2, τ slider, auto-tour)
 js/main.js          scroll reveals, navigation, BibTeX copy, and the button links
-assets/             web-sized figures from the paper and the video poster
+assets/             web-sized figures from the paper, the video, its captions and poster
 ```
 
 ## Links
@@ -24,10 +24,11 @@ A link left empty shows a "coming soon" message instead of leading nowhere.
 
 ## Video
 
-Until the narrated video is published, the Video section shows a poster still with a "coming soon"
-label. To publish the video, replace the `.video-placeholder` block in `index.html` with either a
-`<video>` element (file in `assets/`) or a YouTube embed. The comment just above the block has both
-snippets, and both fill the 16:9 frame without CSS changes.
+The Video section plays `assets/pcd-video.mp4` (the web cut, 1080p60 H.264, about 40 MB) with English
+captions from `assets/pcd-video.vtt` and `assets/video-poster.jpg` as the still. Both come from the
+Manim project (`PCD-Video/out/`): replace the MP4 with a new `-web.mp4` render and regenerate the
+captions from its `.srt` (add a `WEBVTT` header, use `.` instead of `,` in the timestamps).
+The narration voice is ElevenLabs text-to-speech, credited in a footnote under the video.
 
 ## Preview locally
 

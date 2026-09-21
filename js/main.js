@@ -9,10 +9,12 @@
      to keep it as a gentle "coming soon" placeholder.
      ----------------------------------------------------------------------- */
   var LINKS = {
-    paper: "https://arxiv.org/pdf/2606.29521",  // "Read the paper" / "See the appendix"
-    arxiv: "https://arxiv.org/abs/2606.29521",  // arXiv abstract page
-    code: ""                                     // e.g. "https://github.com/yourname/pcd"
+    paper: "https://arxiv.org/pdf/2606.29521",                   // "Read the paper" / "See the appendix"
+    openreview: "https://openreview.net/forum?id=HT01yGHLEt",    // TMLR forum (accepted version)
+    arxiv: "https://arxiv.org/abs/2606.29521",                   // arXiv abstract page
+    code: ""                                                      // set to the code repository once public
   };
+  var PENDING = { code: "Code release coming soon" };             // what visitors see for an unset link
 
   var toast = document.getElementById("toast");
   function showToast(msg) {
@@ -32,10 +34,10 @@
       a.setAttribute("rel", "noopener");
     } else {
       a.setAttribute("aria-disabled", "true");
-      a.setAttribute("title", "Link coming soon");
+      a.setAttribute("title", PENDING[key] || "Link coming soon");
       a.addEventListener("click", function (e) {
         e.preventDefault();
-        showToast("Add your " + key + " link in js/main.js");
+        showToast(PENDING[key] || "Link coming soon");
       });
     }
   });

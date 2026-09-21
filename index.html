@@ -279,7 +279,7 @@
     <h2 class="reveal">Near-unpruned accuracy where baselines collapse.</h2>
 
     <div class="stat-row">
-      <div class="stat reveal"><div class="stat-num">70.9<span>%</span></div><div class="stat-lbl">accuracy at <b>90% parameter reduction</b> on ResNet-34 / CIFAR-100 (73.3% unpruned). Strongest baseline (AuxiNash): 44.4%.</div></div>
+      <div class="stat reveal"><div class="stat-num">70.9<span>%</span></div><div class="stat-lbl">accuracy at <b>90% parameter reduction</b> on ResNet-34 / CIFAR-100 (73.3% unpruned). Strongest of the six general multi-objective baselines (AuxiNash): 44.4%. A log-grid-tuned group-lasso scalarization comes within seed noise (70.5% vs. PCD's 70.9% at ≈88% native sparsity).</div></div>
       <div class="stat reveal"><div class="stat-num">89.2<span>%</span></div><div class="stat-lbl">accuracy at <b>99% parameter reduction</b> on DenseNet-121 / CIFAR-10 — a 45.4× FLOPs and 83× model-size cut, measured on the physically pruned network.</div></div>
       <div class="stat reveal"><div class="stat-num">2.3–3.4<span>×</span></div><div class="stat-lbl">the dominated <b>hypervolume</b> of the strongest baseline in the three-objective setting, in every configuration.</div></div>
     </div>
@@ -300,7 +300,7 @@
       </figure>
       <div class="result-text">
         <h3>One method dominates the pruning frontier</h3>
-        <p>Across <strong>four architectures</strong> (DenseNet-121, ResNet-34, Inception, MobileNetV2) on <strong>CIFAR-10 and CIFAR-100</strong> — eight configurations — PCD's purple curve sits above every multi-objective baseline at every compression target up to 95%. (The one exception is MobileNetV2 / CIFAR-100 at 99%, where every method has collapsed.) Under a structural sparsity penalty the symmetric direction methods (MGDA, PCGrad, CAGrad, FAMO) collapse toward random accuracy; PCD holds the line.</p>
+        <p>Across <strong>four architectures</strong> (DenseNet-121, ResNet-34, Inception, MobileNetV2) on <strong>CIFAR-10 and CIFAR-100</strong> — eight configurations — PCD's purple curve sits above every multi-objective baseline at every compression target up to 95%. (The one exception is MobileNetV2 / CIFAR-100 at 99%, where every method has collapsed.) On ResNet-34 / CIFAR-100 the symmetric direction methods (MGDA, PCGrad, CAGrad, FAMO) finish at 1–7% accuracy while PCD holds 70.9% at 90%. The cause here is objective scale, not gradient conflict: the raw regularizer gradients are one to two orders of magnitude larger than the task gradient, while the cosine between them never exceeds 1.2×10<sup>−3</sup>. PCD's per-objective normalization absorbs that mismatch.</p>
         <p>Against tuned, pruning-specific and constrained baselines at matched sparsity, PCD is better in <strong>28 of 47</strong> comparisons in the compression regime (≥ 85% sparsity), worse in 1, and within seed noise in the rest.</p>
       </div>
     </div>
@@ -330,8 +330,9 @@
 <!-- ======================== APPLICATIONS ======================== -->
 <section id="applications" class="section section-alt">
   <div class="wrap">
-    <p class="kicker reveal">Where it applies</p>
+    <p class="kicker reveal">Where it could apply</p>
     <h2 class="reveal">Anywhere a loss is one deliverable plus structural conditions.</h2>
+    <p class="caption reveal" style="margin:-6px 0 26px">The paper evaluates pruning and compression (structured sparsity, <span class="m">ℓ<sub>1</sub></span> sparsity, low rank). The other three settings share the same structure but are untested.</p>
     <div class="grid grid-apps">
       <article class="card reveal">
         <div class="app-ico" aria-hidden="true">▤</div>
@@ -351,7 +352,7 @@
       <article class="card reveal">
         <div class="app-ico" aria-hidden="true">✦</div>
         <h3>Structured generative modeling</h3>
-        <p>For flow matching and VAEs, keep generative fidelity primary while structural regularizers act as constraints rather than competing peers.</p>
+        <p>For generative models, keep generative fidelity primary while structural regularizers act as constraints rather than competing peers.</p>
       </article>
     </div>
 
@@ -388,6 +389,7 @@
     <ul class="scope-list">
       <li class="reveal"><span class="dot"></span>Secondaries are assumed <strong>proper, convex, lower-semicontinuous</strong> with accessible subgradients (<span class="m">ℓ<sub>1</sub></span>, group lasso, nuclear norm, total variation, hinge all qualify). Non-convex secondaries fall outside the guarantees, though the algorithm still runs.</li>
       <li class="reveal"><span class="dot"></span>Guarantees are <strong>local and directional</strong> — they attach to the normalized direction <span class="m">d̃<sup>*</sup></span> and its idealized first-order step, not to a stochastic global-convergence claim.</li>
+      <li class="reveal"><span class="dot"></span>The <strong>conflict-equilibrium mechanism</strong> (the 2D demo, synthetic experiments) is not what drives the compression results: there, task and regularizer gradients are nearly orthogonal, and PCD's advantage comes from per-objective scale normalization.</li>
       <li class="reveal"><span class="dot"></span>The CMS endpoint is meaningful only when a <strong>jointly stationary point exists</strong> (the regularizer-style hierarchy). On genuine trade-offs with no common stationary point, <span class="m">τ &gt; 0</span> has no fixed point.</li>
       <li class="reveal"><span class="dot"></span>For <span class="m">K &gt; 2</span> the QP can be infeasible if secondaries are mutually incompatible — but in high dimensions this is a measure-zero event (<strong>0 of 1785</strong> synthetic feasibility checks were infeasible).</li>
       <li class="reveal"><span class="dot"></span>Each step needs <span class="m">K</span> backpropagations for the gradients. The <span class="m">K×K</span> QP adds an <span class="m">O(K²n)</span> Gram matrix, a fraction <span class="m">O(K/B)</span> of the backward passes for batch size <span class="m">B</span> (under 2% of wall-clock time at <span class="m">K = 2</span>, <span class="m">B = 128</span>).</li>

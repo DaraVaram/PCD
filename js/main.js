@@ -81,15 +81,24 @@
       dotnav.classList.toggle("show", !e[0].isIntersecting);
     }, { threshold: 0.25 }).observe(hero);
 
-    var spy = new IntersectionObserver(function (entries) {
-      entries.forEach(function (en) {
-        if (en.isIntersecting) {
-          var idx = sections.indexOf(en.target);
-          links.forEach(function (l, i) { l.classList.toggle("active", i === idx); });
-        }
+    // Active = the last section whose top has crossed 40% of the viewport (sections are
+    // often taller than the viewport, so an intersection-ratio threshold never fires).
+    var current = -1;
+    function updateActive() {
+      var line = window.innerHeight * 0.4, idx = 0;
+      sections.forEach(function (s, i) { if (s && s.getBoundingClientRect().top <= line) idx = i; });
+      var h = document.documentElement;
+      if (h.scrollTop + h.clientHeight >= h.scrollHeight - 2) idx = sections.length - 1;
+      if (idx === current) return;
+      current = idx;
+      links.forEach(function (l, i) {
+        l.classList.toggle("active", i === idx);
+        if (i === idx) l.setAttribute("aria-current", "true"); else l.removeAttribute("aria-current");
       });
-    }, { threshold: 0.5, rootMargin: "-20% 0px -40% 0px" });
-    sections.forEach(function (s) { if (s) spy.observe(s); });
+    }
+    window.addEventListener("scroll", updateActive, { passive: true });
+    window.addEventListener("resize", updateActive);
+    updateActive();
   }
 
   /* ---------------- hero trajectory self-draw ---------------- */
